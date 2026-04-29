@@ -114,7 +114,7 @@ const ADMIN_NAV=[
   {id:'staff',label:'Hodimlar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'},
   {id:'schedule',label:'Dars jadvali',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'},
 
-  {id:'finance',label:'Kirim-Chiqim',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'},
+  {id:'finance',label:'Qarzdorlar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'},
   {id:'settings',label:'Sozlamalar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 12 2a10 10 0 0 0-7.07 2.93M4.93 4.93A10 10 0 0 0 2 12a10 10 0 0 0 2.93 7.07M19.07 19.07A10 10 0 0 0 22 12a10 10 0 0 0-2.93-7.07M12 22a10 10 0 0 0 7.07-2.93"/></svg>'},
   {id:'delstaff',label:"O'chirish",svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'},
 ];
@@ -128,7 +128,7 @@ function setupSidebar(user){
     </div>`).join('');
 }
 
-const TITLES={stats:'Statistika',students:"O'quvchilar",staff:'Hodimlar',schedule:'Dars jadvali',finance:'Kirim-Chiqim',settings:'Sozlamalar',delstaff:"O'chirish"};
+const TITLES={stats:'Statistika',students:"O'quvchilar",staff:'Hodimlar',schedule:'Dars jadvali',finance:'Qarzdorlar',settings:'Sozlamalar',delstaff:"O'chirish"};
 
 function nav(page){
   curPage=page;
@@ -478,340 +478,173 @@ async function rSchedule(el){
   loadToday();
 }
 
-// ============ FINANCE ============
+// ============ FINANCE → QARZDORLAR ============
 async function rFinance(el){
-  let ftab='payments';
-  function drawTabs(){
-    el.innerHTML=`
-      <div class="tabs" style="flex-wrap:wrap;gap:4px">
-        <button class="tab${ftab==='payments'?' on':''}" onclick="fTab('payments')">To'lovlar</button>
-        <button class="tab${ftab==='expenses'?' on':''}" onclick="fTab('expenses')">Chiqimlar</button>
-        <button class="tab${ftab==='debtors'?' on':''}" onclick="fTab('debtors')">Qarzdorlar</button>
-        <button class="tab${ftab==='conversion'?' on':''}" onclick="fTab('conversion')">Konversiya</button>
-      </div>
-      <div id="ftabContent"></div>`;
-    window.fTab=t=>{ftab=t;drawTabs();if(t==='payments')rPay();else if(t==='expenses')rExp();else if(t==='debtors')rDebtors();else rConv();};
-    if(ftab==='payments')rPay();else if(ftab==='expenses')rExp();else if(ftab==='debtors')rDebtors();else rConv();
-  }
-
-  // PAYMENTS
-  async function rPay(){
-    const fc=document.getElementById('ftabContent');
-    fc.innerHTML=`
-      <div class="tabs">
-        <button class="tab on" id="pt1" onclick="payMode('search')">Qidiruv orqali</button>
-        <button class="tab" id="pt2" onclick="payMode('group')">Guruh orqali</button>
-      </div>
-      <div id="payContent"></div>`;
-    window.payMode=mode=>{
-      document.getElementById('pt1').className='tab'+(mode==='search'?' on':'');
-      document.getElementById('pt2').className='tab'+(mode==='group'?' on':'');
-      if(mode==='search')paySearch();else payGroup();
-    };
-    paySearch();
-  }
-
-  function paySearch(){
-    const pc=document.getElementById('payContent');
-    pc.innerHTML=`<div class="sbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input id="psq" placeholder="O'quvchi ismi..." oninput="psSearch(this.value)"/></div><div id="psRes"></div>`;
-    window.psSearch=async v=>{
-      if(v.length<2){document.getElementById('psRes').innerHTML='';return;}
-      const students=await G(`/payments/search?q=${encodeURIComponent(v)}`);
-      const res=document.getElementById('psRes');
-      if(!students.length){res.innerHTML=emHtml('Topilmadi');return;}
-      res.innerHTML=`<div class="card" style="padding:0;overflow:hidden">${students.map(s=>`
-        <div class="li" onclick="openPayForm(${JSON.stringify(s).replace(/"/g,"&quot;")})">
-          <div style="flex:1"><div style="font-size:15px;font-weight:500">${s.applicant.firstName} ${s.applicant.lastName}</div>
-          <div style="font-size:12px;color:#9ca3af">${s.groupStudents.map(gs=>gs.group.subject.name).join(', ')}</div></div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-        </div>`).join('')}</div>`;
-    };
-    window.openPayForm=student=>{
-      if(typeof student==='string')student=JSON.parse(student);
-      const activeGS=student.groupStudents.filter(gs=>gs.status==='active');
-      const months=sixMonths();let sm=nowMonth();let selGs=new Set();let pt='cash';let isPartial=false;
-
-      function draw(){
-        openModal(`${student.applicant.firstName} ${student.applicant.lastName}`,`
-          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">GURUH(LAR)</div>
-          <div class="card" style="padding:8px 16px;margin-bottom:16px">
-            ${activeGS.map(gs=>`<div class="chkr" onclick="pgTog(${gs.id})">
-              <div class="chk${selGs.has(gs.id)?' on':''}" id="pgc_${gs.id}">${selGs.has(gs.id)?'✓':''}</div>
-              <span style="font-size:14px;font-weight:500">${gs.group.name} — ${gs.group.subject.name}</span>
-            </div>`).join('')}
-          </div>
-          <div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="pmSel('${m}')">${mLabel(m)}</div>`).join('')}</div>
-          <div class="ig"><label class="il">Summa (so'm)</label>
-            <input id="pmAmt" type="number" class="inp" placeholder="200 000" style="font-size:20px;font-weight:700" oninput="pmFmt(this.value)"/>
-            <div id="pmFD" style="text-align:center;font-size:20px;font-weight:700;color:#07568A;padding:6px 0;display:none"></div>
-            ${selGs.size>1?`<div style="font-size:12px;color:#9ca3af;margin-top:4px">* ${selGs.size} ta guruh uchun teng bo'linadi</div>`:''}
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button onclick="pisFull()" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid ${!isPartial?'#07568A':'#e5e7eb'};background:${!isPartial?'#07568A':'#fff'};color:${!isPartial?'#fff':'#6b7280'};font-size:13px;font-weight:600;cursor:pointer">To'liq</button>
-            <button onclick="pisPartial()" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid ${isPartial?'#07568A':'#e5e7eb'};background:${isPartial?'#07568A':'#fff'};color:${isPartial?'#fff':'#6b7280'};font-size:13px;font-weight:600;cursor:pointer">Qisman</button>
-          </div>
-          ${isPartial?`<div class="ig"><label class="il">To'liq narx (so'm)</label><input id="pmTarget" type="number" class="inp" placeholder="300 000"/></div>`:''}
-          <div class="tabs">
-            <button class="tab${pt==='cash'?' on':''}" onclick="pmPT('cash')">Naqd</button>
-            <button class="tab${pt==='card'?' on':''}" onclick="pmPT('card')">Karta</button>
-          </div>
-          <button class="btn bp" onclick="savePay(${student.id})">✓ To'lovni saqlash</button>
-        `);
-        window.pgTog=id=>{
-          const prevAmt=document.getElementById('pmAmt')?.value||'';
-          const prevTgt=document.getElementById('pmTarget')?.value||'';
-          if(selGs.has(id))selGs.delete(id);else selGs.add(id);
-          draw();
-          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
-          if(prevTgt){const el2=document.getElementById('pmTarget');if(el2)el2.value=prevTgt;}
-        };
-        window.pmSel=m=>{
-          const prevAmt=document.getElementById('pmAmt')?.value||'';
-          const prevTgt=document.getElementById('pmTarget')?.value||'';
-          sm=m;draw();
-          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
-          if(prevTgt){const el2=document.getElementById('pmTarget');if(el2)el2.value=prevTgt;}
-        };
-        window.pmFmt=v=>{const e=document.getElementById('pmFD');if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
-        window.pisFull=()=>{
-          const prevAmt=document.getElementById('pmAmt')?.value||'';
-          isPartial=false;draw();
-          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
-        };
-        window.pisPartial=()=>{
-          const prevAmt=document.getElementById('pmAmt')?.value||'';
-          isPartial=true;draw();
-          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
-        };
-        window.pmPT=t=>{
-          const prevAmt=document.getElementById('pmAmt')?.value||'';
-          const prevTgt=document.getElementById('pmTarget')?.value||'';
-          pt=t;draw();
-          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
-          if(prevTgt){const el2=document.getElementById('pmTarget');if(el2)el2.value=prevTgt;}
-        };
-        window.savePay=async sid=>{
-          const amt=document.getElementById('pmAmt').value;
-          if(!amt)return toast('Summani kiriting');
-          if(!selGs.size)return toast('Guruh tanlang');
-          const target=isPartial?document.getElementById('pmTarget')?.value:null;
-          try{
-            if(selGs.size>1){
-              await P('/payments/batch',{studentId:sid,groupIds:Array.from(selGs),monthYear:sm,totalAmount:parseInt(amt),targetAmount:target?parseInt(target):null,isPartial,paymentType:pt});
-            } else {
-              const gid=Array.from(selGs)[0];
-              await P('/payments',{studentId:sid,groupId:gid,monthYear:sm,amount:parseInt(amt),targetAmount:target?parseInt(target):null,isPartial,paymentType:pt});
-            }
-            closeModal();toast('✅ To\'lov saqlandi');
-          } catch(e){toast('❌ '+e.message);}
-        };
-      }
-      draw();
-    };
-  }
-
-  async function payGroup(){
-    const pc=document.getElementById('payContent');
-    const subs=await G('/subjects');
-    let sid=null,gid=null;
-    function step1(){pc.innerHTML=`<div class="st">FAN TANLANG</div><div class="card" style="padding:0;overflow:hidden">${subs.map(s=>`<div class="li" onclick="pgS1(${s.id})"><div style="flex:1;font-weight:500">${s.name}</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>`).join('')}</div>`;
-      window.pgS1=async s=>{sid=s;const gs=await G(`/groups?subjectId=${s}`);step2(gs);};
-    }
-    function step2(gs){
-      pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="pgBack1()">← Orqaga</button><div class="card" style="padding:0;overflow:hidden">${gs.map(g=>`<div class="li" onclick="pgS2(${g.id})"><div style="flex:1"><div style="font-weight:500">${g.name}</div><div style="font-size:12px;color:#9ca3af">${g.teacher?.firstName||''} ${g.teacher?.lastName||''}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>`).join('')}</div>`;
-      window.pgBack1=step1;window.pgS2=async g=>{gid=g;const sts=await G(`/groups/${g}/students`);step3(sts);};
-    }
-    function step3(sts){
-      let srch='';
-      function draw2(){
-        const f=srch?sts.filter(s=>`${s.firstName} ${s.lastName}`.toLowerCase().includes(srch.toLowerCase())):sts;
-        pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="pgBack2()">← Orqaga</button><div class="sbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Qidirish..." oninput="pgSrch(this.value)"/></div><div class="card" style="padding:0;overflow:hidden">${f.map(s=>`<div class="li" onclick="pgS3(${s.id})"><div style="flex:1;font-weight:500">${s.firstName} ${s.lastName}</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>`).join('')}</div>`;
-        window.pgSrch=v=>{srch=v;draw2();};window.pgBack2=async()=>{const gs=await G(`/groups?subjectId=${sid}`);step2(gs);};
-        window.pgS3=stid=>step4(stid);
-      }
-      draw2();
-    }
-    function step4(stid){
-      const months=sixMonths();let sm=nowMonth();let pt='cash';let isPartial=false;
-      function draw3(){
-        pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="pgBack3()">← Orqaga</button>
-          <div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="pp4m('${m}')">${mLabel(m)}</div>`).join('')}</div>
-          <div class="ig"><label class="il">Summa (so'm)</label><input id="pp4a" type="number" class="inp" placeholder="200 000" style="font-size:20px;font-weight:700" oninput="pp4f(this.value)"/><div id="pp4fd" style="text-align:center;font-size:20px;font-weight:700;color:#07568A;padding:6px 0;display:none"></div></div>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button onclick="pp4full()" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid ${!isPartial?'#07568A':'#e5e7eb'};background:${!isPartial?'#07568A':'#fff'};color:${!isPartial?'#fff':'#6b7280'};font-size:13px;font-weight:600;cursor:pointer">To'liq</button>
-            <button onclick="pp4partial()" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid ${isPartial?'#07568A':'#e5e7eb'};background:${isPartial?'#07568A':'#fff'};color:${isPartial?'#fff':'#6b7280'};font-size:13px;font-weight:600;cursor:pointer">Qisman</button>
-          </div>
-          ${isPartial?`<div class="ig"><label class="il">To'liq narx</label><input id="pp4tgt" type="number" class="inp" placeholder="300 000"/></div>`:''}
-          <div class="tabs"><button class="tab${pt==='cash'?' on':''}" onclick="pp4pt('cash')">Naqd</button><button class="tab${pt==='card'?' on':''}" onclick="pp4pt('card')">Karta</button></div>
-          <button class="btn bp" onclick="pp4save()">✓ To'lovni saqlash</button>`;
-        window.pp4m=m=>{sm=m;draw3();};window.pp4f=v=>{const e=document.getElementById('pp4fd');if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
-        window.pp4full=()=>{isPartial=false;draw3();};window.pp4partial=()=>{isPartial=true;draw3();};window.pp4pt=t=>{pt=t;draw3();};
-        window.pgBack3=async()=>{const sts=await G(`/groups/${gid}/students`);step3(sts);};
-        window.pp4save=async()=>{
-          const a=document.getElementById('pp4a').value;if(!a)return toast('Summani kiriting');
-          const tgt=isPartial?document.getElementById('pp4tgt')?.value:null;
-          try{await P('/payments',{studentId:stid,groupId:gid,monthYear:sm,amount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});toast('✅ Saqlandi');rPay();}
-          catch(e){toast('❌ '+e.message);}
-        };
-      }
-      draw3();
-    }
-    step1();
-  }
-
-  // EXPENSES
-  async function rExp(){
-    const fc=document.getElementById('ftabContent');
-    const staff=await G('/staff');
-    let cat='staff',comm='Soliq',pt='cash';
-    const months=sixMonths();let sm=nowMonth();
-    function draw(){
-      fc.innerHTML=`
-        <div class="tabs">
-          <button class="tab on" id="pt1" onclick="fTab('payments')">To'lovlar</button>
-          <button class="tab on" id="pt2" onclick="fTab('expenses')">Chiqimlar</button>
-          <button class="tab" id="pt3" onclick="fTab('conversion')">Konversiya</button>
-        </div>
-        <div class="tabs">
-          <button class="tab${cat==='staff'?' on':''}" onclick="ec('staff')">Hodim</button>
-          <button class="tab${cat==='communal'?' on':''}" onclick="ec('communal')">Komunal</button>
-          <button class="tab${cat==='other'?' on':''}" onclick="ec('other')">Boshqa</button>
-        </div>
-        ${cat==='staff'?`<div class="ig"><label class="il">Hodim</label><select id="ex_st" class="inp"><option value="">Tanlang</option>${staff.map(s=>`<option value="${s.id}">${s.firstName} ${s.lastName}</option>`).join('')}</select></div><div class="st">OY</div><div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="em('${m}')">${mLabel(m)}</div>`).join('')}</div>`:''}
-        ${cat==='communal'?`<div style="display:flex;gap:8px;margin-bottom:16px">${['Soliq','Elektr','Suv'].map(t=>`<button onclick="eco('${t}')" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid ${comm===t?'#07568A':'#e5e7eb'};background:${comm===t?'#07568A':'#fff'};color:${comm===t?'#fff':'#6b7280'};font-size:13px;font-weight:600;cursor:pointer">${t}</button>`).join('')}</div><div class="st">OY</div><div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="em('${m}')">${mLabel(m)}</div>`).join('')}</div>`:''}
-        <div class="ig"><label class="il">Summa (so'm)</label><input id="ex_a" type="number" class="inp" style="font-size:20px;font-weight:700" placeholder="500 000" oninput="exf(this.value)"/><div id="ex_fd" style="text-align:center;font-size:20px;font-weight:700;color:#07568A;padding:6px 0;display:none"></div></div>
-        <div class="tabs"><button class="tab${pt==='cash'?' on':''}" onclick="et('cash')">Naqd</button><button class="tab${pt==='card'?' on':''}" onclick="et('card')">Karta</button></div>
-        <div class="ig"><label class="il">Izoh</label><input id="ex_n" class="inp" placeholder="Izoh..."/></div>
-        <button class="btn bp" onclick="exSave()">✓ Saqlash</button>`;
-      window.ec=c=>{cat=c;draw();};window.em=m=>{sm=m;draw();};window.eco=t=>{comm=t;draw();};window.et=t=>{pt=t;draw();};
-      window.exf=v=>{const e=document.getElementById('ex_fd');if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
-      window.exSave=async()=>{
-        const a=document.getElementById('ex_a').value;if(!a)return toast('Summani kiriting');
-        const st=document.getElementById('ex_st')?.value||null;
-        if(cat==='staff'&&!st)return toast('Hodimni tanlang');
-        const n=document.getElementById('ex_n').value;
-        try{await P('/expenses',{category:cat,subcategory:cat==='communal'?comm:null,staffId:st,monthYear:cat!=='other'?sm:null,amount:parseInt(a),paymentType:pt,note:n});toast('✅ Saqlandi');draw();document.getElementById('ex_a').value='';document.getElementById('ex_fd').style.display='none';}
-        catch(e){toast('❌ '+e.message);}
-      };
-    }
-    draw();
-  }
-
-  // CONVERSION
-  async function rConv(){
-    const fc=document.getElementById('ftabContent');
-    let type='cash_to_card',from='',to='';
-    function draw(){
-      const isCTC=type==='cash_to_card';
-      fc.innerHTML=`
-        <div class="tabs">
-          <button class="tab" onclick="fTab('payments')">To'lovlar</button>
-          <button class="tab" onclick="fTab('expenses')">Chiqimlar</button>
-          <button class="tab on" onclick="fTab('conversion')">Konversiya</button>
-        </div>
-        <div class="tabs"><button class="tab${isCTC?' on':''}" onclick="cvt('cash_to_card')">Naqd → Karta</button><button class="tab${!isCTC?' on':''}" onclick="cvt('card_to_cash')">Karta → Naqd</button></div>
-        <div class="card" style="padding:16px;margin-bottom:12px;background:#f9fafb;border:1.5px solid #e5e7eb">
-          <div style="font-size:12px;font-weight:700;color:#6b7280;margin-bottom:8px">${isCTC?'Naqd berildi':'Kartadan olindi'}</div>
-          <input id="cv_f" type="number" class="inp" style="font-size:24px;font-weight:700;border:none;padding:0;background:transparent" placeholder="500 000" value="${from}" oninput="cvfm('from',this.value)"/>
-          <div id="cv_ff" style="font-size:14px;color:#6b7280;margin-top:4px;${from?'':'display:none'}">${from?fmt(from):''}</div>
-        </div>
-        <div style="text-align:center;font-size:28px;color:#d1d5db;margin-bottom:12px">⬇</div>
-        <div class="card" style="padding:16px;margin-bottom:20px;background:#eff6ff;border:1.5px solid #07568A">
-          <div style="font-size:12px;font-weight:700;color:#07568A;margin-bottom:8px">${isCTC?'Karta qabul':'Naqd olindi'}</div>
-          <input id="cv_t" type="number" class="inp" style="font-size:24px;font-weight:700;border:none;padding:0;background:transparent;color:#07568A" placeholder="505 000" value="${to}" oninput="cvfm('to',this.value)"/>
-          <div id="cv_tf" style="font-size:14px;color:#07568A;margin-top:4px;${to?'':'display:none'}">${to?fmt(to):''}</div>
-        </div>
-        <button class="btn bp" onclick="cvSave()">✓ Saqlash</button>`;
-      window.cvt=t=>{type=t;draw();};
-      window.cvfm=(side,v)=>{if(side==='from')from=v;else to=v;const e=document.getElementById(`cv_${side==='from'?'ff':'tf'}`);if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
-      window.cvSave=async()=>{
-        const f=document.getElementById('cv_f').value,t=document.getElementById('cv_t').value;
-        if(!f||!t)return toast('Ikkala summani kiriting');
-        try{await P('/conversions',{type,fromAmount:parseInt(f),toAmount:parseInt(t)});toast('✅ Saqlandi');from='';to='';draw();}
-        catch(e){toast('❌ '+e.message);}
-      };
-    }
-    draw();
-  }
-
-  drawTabs();
+  rDebtors(el);
 }
 
 // ============ DEBTORS ============
-async function rDebtors(){
-  const fc=document.getElementById('ftabContent');
-  const months=sixMonths();let selMonth=nowMonth();let maxAmt='';
+async function rDebtors(el){
+  // el - sahifa elementi (rFinance dan keladi)
+  const container = el || document.getElementById('content');
+  const months = sixMonths();
+  let selMonth = nowMonth();
+  let maxAmt = '';
+  let expandedGroup = null;
+
   async function load(){
-    fc.innerHTML=`
-      <div class="mp">${months.map(m=>`<div class="mpb${m===selMonth?' on':''}" onclick="dbM('${m}')">${mLabel(m)}</div>`).join('')}</div>
-      <div class="ig" style="margin-bottom:12px">
-        <label class="il">Maksimal to'lov summasi (ixtiyoriy)</label>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input id="dbAmt" type="number" class="inp" style="flex:1" placeholder="300 000 — shu summadan kam to'laganlar" value="${maxAmt}" oninput="maxAmt=this.value"/>
-          <button class="btn bp bsm" onclick="dbLoad()">Qidirish</button>
-        </div>
-        <div style="font-size:12px;color:#9ca3af;margin-top:6px">* Bo'sh qoldirilsa: to'lamagan + qisman to'laganlar chiqadi</div>
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="st" style="margin:0">OY TANLANG</div>
+      </div>
+      <div class="mp">${months.map(m=>`<div class="mpb${m===selMonth?' on':''}" onclick="dbSelMonth('${m}')">${mLabel(m)}</div>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <input id="dbAmt" type="number" class="inp" style="flex:1" placeholder="Narx (bo'sh = barchasi)" value="${maxAmt}" oninput="maxAmt=this.value"/>
+        <button class="btn bp bsm" onclick="dbLoad()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
       </div>
       <div id="dbList">${ldHtml()}</div>`;
-    window.dbM=m=>{selMonth=m;dbLoad();};
-    window.dbLoad=dbLoad;
+
+    window.dbSelMonth = m => { selMonth = m; expandedGroup = null; dbLoad(); };
+    window.dbLoad = dbLoad;
+    window.maxAmt = maxAmt;
     dbLoad();
   }
-  window.dbNotify=async(studentId,monthYear,groupId,remaining)=>{
-    try{
-      await P('/notifications/debt',{studentId,groupId,monthYear,remainingAmount:remaining});
+
+  window.dbNotify = async (studentId, monthYear, groupId, remaining) => {
+    try {
+      await P('/notifications/debt', { studentId, groupId, monthYear, remainingAmount: remaining });
       toast('Xabar yuborildi');
-    }catch(e){toast('❌ '+e.message);}
+    } catch(e) { toast('❌ ' + e.message); }
   };
+
+  window.dbNotifyGroup = async (groupId, monthYear) => {
+    const btn = document.getElementById('dbn_'+groupId);
+    if(btn){ btn.disabled = true; btn.textContent = 'Yuborilmoqda...'; }
+    try {
+      const res = await P('/notifications/debt/group', { groupId, monthYear });
+      toast(`${res.sent} ta xabar yuborildi`);
+      if(btn){ btn.textContent = 'Yuborildi'; }
+    } catch(e) {
+      toast('❌ ' + e.message);
+      if(btn){ btn.disabled = false; btn.textContent = 'Guruhga xabar'; }
+    }
+  };
+
+  window.dbToggleGroup = (groupId) => {
+    expandedGroup = expandedGroup === groupId ? null : groupId;
+    // Faqat kartani toggle qilamiz, to'liq qayta yuklamasdan
+    document.querySelectorAll('.db-group-body').forEach(el2 => {
+      const gid = parseInt(el2.dataset.gid);
+      el2.style.display = gid === expandedGroup ? 'block' : 'none';
+    });
+    document.querySelectorAll('.db-chevron').forEach(el2 => {
+      const gid = parseInt(el2.dataset.gid);
+      el2.style.transform = gid === expandedGroup ? 'rotate(90deg)' : '';
+    });
+  };
+
   async function dbLoad(){
-    const list=document.getElementById('dbList');
-    if(!list)return;
-    list.innerHTML=ldHtml();
-    try{
-      const url=maxAmt?`/debtors?monthYear=${selMonth}&maxAmount=${maxAmt}`:`/debtors?monthYear=${selMonth}`;
-      const groups=await G(url);
-      if(!groups.length){list.innerHTML=emHtml("Qarzdorlar yo'q — ajoyib!");return;}
-      const totalDebtors=groups.reduce((s,g)=>s+g.students.length,0);
-      list.innerHTML=`
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div class="st" style="margin:0">JAMI: ${totalDebtors} ta o'quvchi</div>
+    maxAmt = document.getElementById('dbAmt')?.value || maxAmt;
+    const list = document.getElementById('dbList');
+    if(!list) return;
+    list.innerHTML = ldHtml();
+    try {
+      const url = maxAmt ? `/debtors?monthYear=${selMonth}&maxAmount=${maxAmt}` : `/debtors?monthYear=${selMonth}`;
+      const groups = await G(url);
+
+      if(!groups.length){
+        list.innerHTML = `
+          <div style="text-align:center;padding:48px 20px">
+            <div style="width:64px;height:64px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div style="font-size:16px;font-weight:600;color:#15803d">Qarzdorlar yo'q!</div>
+            <div style="font-size:13px;color:#9ca3af;margin-top:4px">${mLabel(selMonth)} oyi uchun hammasi to'langan</div>
+          </div>`;
+        return;
+      }
+
+      const totalDebtors = groups.reduce((s,g) => s + g.students.length, 0);
+      const totalDebt = groups.reduce((s,g) => s + (parseInt(g.totalDebt)||0), 0);
+
+      list.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div class="card" style="padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:700;color:#ef4444">${totalDebtors}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px">Qarzdor o'quvchi</div>
+          </div>
+          <div class="card" style="padding:14px;text-align:center">
+            <div style="font-size:16px;font-weight:700;color:#ef4444">${fmt(totalDebt)}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px">Jami qoldiq</div>
+          </div>
         </div>
-        ${groups.map(g=>`
-          <div style="margin-bottom:16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#07568A;border-radius:12px 12px 0 0">
+        ${groups.map(g => `
+          <div style="margin-bottom:10px;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+            <!-- Guruh header — bosib ochish/yopish -->
+            <div onclick="dbToggleGroup(${g.groupId})" style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:#07568A;cursor:pointer">
               <div>
                 <div style="font-weight:700;color:#fff;font-size:14px">${g.groupName}</div>
                 <div style="font-size:12px;color:rgba(255,255,255,.7)">${g.subjectName}${g.teacherName?' · '+g.teacherName:''}</div>
               </div>
-              <div style="text-align:right">
-                <div style="font-size:11px;color:rgba(255,255,255,.6)">Qarzdorlar</div>
-                <div style="font-size:18px;font-weight:700;color:#fff">${g.students.length}</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="text-align:right">
+                  <div style="font-size:20px;font-weight:700;color:#fff">${g.students.length}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.6)">kishsi</div>
+                </div>
+                <svg class="db-chevron" data-gid="${g.groupId}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="2.5" style="flex-shrink:0;transition:transform .2s"><path d="m9 18 6-6-6-6"/></svg>
               </div>
             </div>
-            <div class="card" style="border-radius:0 0 12px 12px;padding:0;overflow:hidden">
-              ${g.students.map(s=>`
-                <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
-                  <div style="flex:1">
-                    <div style="font-size:14px;font-weight:500">${s.firstName} ${s.lastName}</div>
-                    <div style="font-size:12px;color:#9ca3af;margin-top:2px">${s.phoneSelf||s.phoneFather||s.phoneMother||'—'}</div>
-                  </div>
-                  <div style="text-align:right;flex-shrink:0;margin-left:12px">
+
+            <!-- Guruhga xabar tugmasi -->
+            <div style="background:#0a6fa8;padding:8px 16px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;color:rgba(255,255,255,.8)">${g.totalDebt&&g.totalDebt!=='0'?'Jami qoldiq: '+fmt(g.totalDebt):''}</span>
+              <button id="dbn_${g.groupId}" onclick="dbNotifyGroup(${g.groupId},'${selMonth}')" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:600;cursor:pointer">
+                Guruhga xabar
+              </button>
+            </div>
+
+            <!-- O'quvchilar ro'yxati -->
+            <div class="db-group-body" data-gid="${g.groupId}" style="display:none;background:#fff">
+              ${g.students.map((s,i) => `
+                <div style="padding:12px 16px;${i<g.students.length-1?'border-bottom:1px solid #f3f4f6':''};display:flex;gap:12px;align-items:flex-start">
+                  <!-- Raqam -->
+                  <div style="width:28px;height:28px;border-radius:50%;background:${s.noPay?'#fee2e2':'#fef9c3'};color:${s.noPay?'#ef4444':'#b45309'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${i+1}</div>
+                  <!-- Info -->
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.firstName} ${s.lastName}</div>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:1px">${s.phoneSelf||s.phoneFather||s.phoneMother||'—'}</div>
                     ${s.noPay
-                      ?`<div style="font-size:11px;font-weight:700;color:#ef4444;background:#fee2e2;padding:3px 10px;border-radius:20px;margin-bottom:4px">To'lamagan</div>`
-                      :`<div>
-                          <div style="font-size:12px;color:#9ca3af">To'langan: <b style="color:#15803d">${fmt(s.paidAmount)}</b></div>
-                          ${s.remainingAmount?`<div style="font-size:12px;color:#ef4444;font-weight:600">Qoldi: ${fmt(s.remainingAmount)}</div>`:''}
-                          <div style="font-size:11px;font-weight:700;color:#f59e0b;background:#fef9c3;padding:2px 8px;border-radius:20px;margin-top:2px">Qisman</div>
-                        </div>`
+                      ? `<div style="display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#ef4444;background:#fee2e2;padding:2px 8px;border-radius:20px">To'lamagan</div>`
+                      : `<div style="margin-top:4px;font-size:12px;color:#6b7280">
+                          To'lagan: <b style="color:#15803d">${fmt(s.paidAmount)}</b>
+                          ${s.remainingAmount&&s.remainingAmount!=='0'?` · Qoldi: <b style="color:#ef4444">${fmt(s.remainingAmount)}</b>`:''}
+                        </div>
+                        <div style="display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:#b45309;background:#fef9c3;padding:2px 8px;border-radius:20px">Qisman</div>`
                     }
-                    <button onclick="dbNotify(${s.studentId},'${selMonth}',${g.groupId},'${s.remainingAmount||'0'}')" style="margin-top:6px;padding:4px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:11px;cursor:pointer;color:#6b7280">Xabar</button>
                   </div>
+                  <!-- Xabar tugmasi -->
+                  <button onclick="dbNotify(${s.studentId},'${selMonth}',${g.groupId},'${s.remainingAmount||'0'}')" style="flex-shrink:0;padding:6px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:11px;cursor:pointer;color:#6b7280;display:flex;align-items:center;gap:4px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Xabar
+                  </button>
                 </div>`).join('')}
             </div>
-            ${g.totalDebt&&g.totalDebt!=='0'?`<div style="text-align:right;font-size:13px;color:#ef4444;font-weight:600;padding:6px 4px">Jami qoldiq: ${fmt(g.totalDebt)}</div>`:''}
           </div>`).join('')}`;
-    }catch(e){list.innerHTML=emHtml('Xatolik: '+e.message);}
+
+      // Birinchi guruhni avtomatik ochish
+      if(groups.length > 0) {
+        expandedGroup = groups[0].groupId;
+        const firstBody = document.querySelector('.db-group-body[data-gid="'+expandedGroup+'"]');
+        const firstChev = document.querySelector('.db-chevron[data-gid="'+expandedGroup+'"]');
+        if(firstBody) firstBody.style.display = 'block';
+        if(firstChev) firstChev.style.transform = 'rotate(90deg)';
+      }
+
+    } catch(e) { list.innerHTML = emHtml('Xatolik: ' + e.message); }
   }
+
   load();
 }
 
