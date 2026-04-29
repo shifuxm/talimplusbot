@@ -481,14 +481,15 @@ async function rFinance(el){
   let ftab='payments';
   function drawTabs(){
     el.innerHTML=`
-      <div class="tabs">
+      <div class="tabs" style="flex-wrap:wrap;gap:4px">
         <button class="tab${ftab==='payments'?' on':''}" onclick="fTab('payments')">To'lovlar</button>
         <button class="tab${ftab==='expenses'?' on':''}" onclick="fTab('expenses')">Chiqimlar</button>
+        <button class="tab${ftab==='debtors'?' on':''}" onclick="fTab('debtors')">Qarzdorlar</button>
         <button class="tab${ftab==='conversion'?' on':''}" onclick="fTab('conversion')">Konversiya</button>
       </div>
       <div id="ftabContent"></div>`;
-    window.fTab=t=>{ftab=t;drawTabs();if(t==='payments')rPay();else if(t==='expenses')rExp();else rConv();};
-    if(ftab==='payments')rPay();else if(ftab==='expenses')rExp();else rConv();
+    window.fTab=t=>{ftab=t;drawTabs();if(t==='payments')rPay();else if(t==='expenses')rExp();else if(t==='debtors')rDebtors();else rConv();};
+    if(ftab==='payments')rPay();else if(ftab==='expenses')rExp();else if(ftab==='debtors')rDebtors();else rConv();
   }
 
   // PAYMENTS
@@ -705,6 +706,77 @@ async function rFinance(el){
   }
 
   drawTabs();
+}
+
+// ============ DEBTORS ============
+async function rDebtors(){
+  const fc=document.getElementById('ftabContent');
+  const months=sixMonths();let selMonth=nowMonth();let maxAmt='';
+  async function load(){
+    fc.innerHTML=`
+      <div class="mp">${months.map(m=>`<div class="mpb${m===selMonth?' on':''}" onclick="dbM('${m}')">${mLabel(m)}</div>`).join('')}</div>
+      <div class="ig" style="margin-bottom:12px">
+        <label class="il">Maksimal to'lov summasi (ixtiyoriy)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="dbAmt" type="number" class="inp" style="flex:1" placeholder="300 000 — shu summadan kam to'laganlar" value="${maxAmt}" oninput="maxAmt=this.value"/>
+          <button class="btn bp bsm" onclick="dbLoad()">Qidirish</button>
+        </div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:6px">* Bo'sh qoldirilsa: to'lamagan + qisman to'laganlar chiqadi</div>
+      </div>
+      <div id="dbList">${ldHtml()}</div>`;
+    window.dbM=m=>{selMonth=m;dbLoad();};
+    window.dbLoad=dbLoad;
+    dbLoad();
+  }
+  async function dbLoad(){
+    const list=document.getElementById('dbList');
+    if(!list)return;
+    list.innerHTML=ldHtml();
+    try{
+      const url=maxAmt?`/debtors?monthYear=${selMonth}&maxAmount=${maxAmt}`:`/debtors?monthYear=${selMonth}`;
+      const groups=await G(url);
+      if(!groups.length){list.innerHTML=emHtml("Qarzdorlar yo'q — ajoyib!");return;}
+      const totalDebtors=groups.reduce((s,g)=>s+g.students.length,0);
+      list.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="st" style="margin:0">JAMI: ${totalDebtors} ta o'quvchi</div>
+        </div>
+        ${groups.map(g=>`
+          <div style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#07568A;border-radius:12px 12px 0 0">
+              <div>
+                <div style="font-weight:700;color:#fff;font-size:14px">${g.groupName}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.7)">${g.subjectName}${g.teacherName?' · '+g.teacherName:''}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:11px;color:rgba(255,255,255,.6)">Qarzdorlar</div>
+                <div style="font-size:18px;font-weight:700;color:#fff">${g.students.length}</div>
+              </div>
+            </div>
+            <div class="card" style="border-radius:0 0 12px 12px;padding:0;overflow:hidden">
+              ${g.students.map(s=>`
+                <div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
+                  <div style="flex:1">
+                    <div style="font-size:14px;font-weight:500">${s.firstName} ${s.lastName}</div>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:2px">${s.phoneSelf||s.phoneFather||s.phoneMother||'—'}</div>
+                  </div>
+                  <div style="text-align:right;flex-shrink:0;margin-left:12px">
+                    ${s.noPay
+                      ?`<div style="font-size:11px;font-weight:700;color:#ef4444;background:#fee2e2;padding:3px 10px;border-radius:20px">To'lamagan</div>`
+                      :`<div>
+                          <div style="font-size:12px;color:#9ca3af">To'langan: <b style="color:#15803d">${fmt(s.paidAmount)}</b></div>
+                          ${s.remainingAmount?`<div style="font-size:12px;color:#ef4444;font-weight:600">Qoldi: ${fmt(s.remainingAmount)}</div>`:''}
+                          <div style="font-size:11px;font-weight:700;color:#f59e0b;background:#fef9c3;padding:2px 8px;border-radius:20px;margin-top:2px">Qisman</div>
+                        </div>`
+                    }
+                  </div>
+                </div>`).join('')}
+            </div>
+            ${g.totalDebt&&g.totalDebt!=='0'?`<div style="text-align:right;font-size:13px;color:#ef4444;font-weight:600;padding:6px 4px">Jami qoldiq: ${fmt(g.totalDebt)}</div>`:''}
+          </div>`).join('')}`;
+    }catch(e){list.innerHTML=emHtml('Xatolik: '+e.message);}
+  }
+  load();
 }
 
 // ============ SETTINGS ============
