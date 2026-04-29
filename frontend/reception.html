@@ -198,27 +198,39 @@ async function rAppList(el){
     if(typeof a==='string')a=JSON.parse(a);
     const ids=(a.applicantSubjects||[]).map(x=>x.subjectId||x.subject?.id).filter(Boolean);
     if(!ids.length)return toast('Fan biriktirilmagan');
-    await enrollStep(a,0,ids,[]);
+    const subs2=await G('/subjects');
+    // Har bir fan uchun guruh tanlash — "O'tkazib yuborish" imkoni bilan
+    const selGroups={};
+    let step=0;
+    async function showStep(){
+      if(step>=ids.length){
+        // Xulosa — tanlangan guruhlar
+        const asn=Object.entries(selGroups).filter(([,gid])=>gid!==null).map(([,gid])=>({groupId:gid}));
+        if(!asn.length)return toast("Hech bo'lmaganda bitta guruh tanlang");
+        try{await P(`/applicants/${a.id}/enroll`,{groupAssignments:asn});closeModal();toast('✅ Biriktirildi');load();}
+        catch(e){toast('❌ '+e.message);}
+        return;
+      }
+      const sid=ids[step];
+      const sn=subs2.find(s=>s.id===sid)?.name||'';
+      const gs=await G(`/groups?subjectId=${sid}`);
+      openModal(`Guruh tanlang (${step+1}/${ids.length})`,`
+        <div style="font-size:13px;color:#07568A;font-weight:600;margin-bottom:4px">${a.firstName} ${a.lastName}</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:12px">Fan: ${sn}</div>
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:10px">
+          ${gs.length===0?`<div style="padding:20px;text-align:center;color:#9ca3af">Guruhlar yo'q</div>`:
+          gs.map(g=>`<div class="li" onclick="epick(${g.id})">
+            <div class="lic" style="background:#dcfce7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:500">${g.name}</div><div style="font-size:12px;color:#9ca3af">${g.teacher?.firstName||''} ${g.teacher?.lastName||''}</div></div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+          </div>`).join('')}
+        </div>
+        <button class="btn bs" onclick="eskip()">O'tkazib yuborish →</button>`);
+      window.epick=async gid=>{selGroups[sid]=gid;step++;await showStep();};
+      window.eskip=async()=>{selGroups[sid]=null;step++;await showStep();};
+    }
+    showStep();
   };
-  async function enrollStep(a,idx,ids,asn){
-    const[gs,subs2]=await Promise.all([G(`/groups?subjectId=${ids[idx]}`),G('/subjects')]);
-    const sn=subs2.find(s=>s.id===ids[idx])?.name||'';
-    openModal('Guruh tanlang',`
-      <div style="font-size:13px;color:#07568A;font-weight:600;margin-bottom:12px">${a.firstName} ${a.lastName} — ${sn}</div>
-      <div class="card" style="padding:0;overflow:hidden">
-        ${gs.length===0?`<div style="padding:20px;text-align:center;color:#9ca3af">Guruhlar yo'q</div>`:
-        gs.map(g=>`<div class="li" onclick="epick(${g.id})">
-          <div class="lic" style="background:#dcfce7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-          <div style="flex:1"><div style="font-size:15px;font-weight:500">${g.name}</div><div style="font-size:12px;color:#9ca3af">${g.teacher?.firstName||''} ${g.teacher?.lastName||''}</div></div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-        </div>`).join('')}
-      </div>`);
-    window.epick=async gid=>{
-      const na=[...asn,{groupId:gid}];
-      if(idx+1<ids.length)await enrollStep(a,idx+1,ids,na);
-      else{try{await P(`/applicants/${a.id}/enroll`,{groupAssignments:na});closeModal();toast('✅ Biriktirildi');load();}catch(e){toast('❌ '+e.message);}}
-    };
-  }
   load();
 }
 
@@ -319,17 +331,29 @@ async function rGroups(el){
     const isEdit=!!data;
     openModal(isEdit?"Guruhni tahrirlash":"Guruh qo'shish",`
       <div class="ig"><label class="il">Guruh nomi</label><input id="gr_name" class="inp" value="${data?.name||''}" placeholder="Masalan: Matematika-1"/></div>
-      ${!isEdit?`<div class="ig"><label class="il">Fan</label><select id="gr_sub" class="inp">
+      ${!isEdit?`<div class="ig"><label class="il">Fan</label><select id="gr_sub" class="inp" onchange="grFilterTeachers()">
         <option value="">Fan tanlang</option>
-        ${subs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+        ${subs.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('')}
       </select></div>`:''}
       <div class="ig"><label class="il">O'qituvchi</label><select id="gr_teacher" class="inp">
         <option value="">O'qituvchi tanlang</option>
-        ${teachers.map(t=>`<option value="${t.id}" ${data?.teacherId===t.id?'selected':''}>${t.firstName} ${t.lastName} — ${t.subject||''}</option>`).join('')}
+        ${teachers.map(t=>`<option value="${t.id}" ${data?.teacherId===t.id?'selected':''} data-sub="${t.subject||''}">${t.firstName} ${t.lastName}${t.subject?' — '+t.subject:''}</option>`).join('')}
       </select></div>
       <button class="btn bp" onclick="saveGr(${isEdit?data.id:'null'})">✓ Saqlash</button>
       ${isEdit?`<button class="btn bd" style="margin-top:8px" onclick="archiveGr(${data.id})">Arxivga o'tkazish</button>`:''}
     `);
+    if(!isEdit){
+      window.grFilterTeachers=()=>{
+        const subSel=document.getElementById('gr_sub');
+        const subName=subSel.options[subSel.selectedIndex]?.dataset?.name||'';
+        const tSel=document.getElementById('gr_teacher');
+        Array.from(tSel.options).forEach(o=>{
+          if(!o.value)return;
+          o.hidden=!!(subName&&o.dataset.sub!==subName);
+        });
+        tSel.value='';
+      };
+    }
   };
 
   window.saveGr=async id=>{
@@ -421,13 +445,15 @@ async function rPayments(el){
     window.openPF=student=>{
       if(typeof student==='string')student=JSON.parse(student);
       const activeGS=student.groupStudents.filter(gs=>gs.status==='active');
-      const months=sixMonths();let sm=nowMonth();let selGs=new Set();let pt='cash';let isPartial=false;
+      const months=sixMonths();let sm=nowMonth();let selGIds=new Set();let pt='cash';let isPartial=false;
       function draw(){
+        const prevAmt=document.getElementById('pfA')?.value||'';
+        const prevTgt=document.getElementById('pfTgt')?.value||'';
         openModal(`${student.applicant.firstName} ${student.applicant.lastName}`,`
           <div class="st">GURUH(LAR)</div>
           <div class="card" style="padding:8px 16px;margin-bottom:16px">
-            ${activeGS.map(gs=>`<div class="chkr" onclick="pfG(${gs.id})">
-              <div class="chk${selGs.has(gs.id)?' on':''}" id="pfgc_${gs.id}">${selGs.has(gs.id)?'✓':''}</div>
+            ${activeGS.map(gs=>`<div class="chkr" onclick="pfG(${gs.group.id})">
+              <div class="chk${selGIds.has(gs.group.id)?' on':''}" id="pfgc_${gs.group.id}">${selGIds.has(gs.group.id)?'✓':''}</div>
               <span style="font-size:14px;font-weight:500">${gs.group.name} — ${gs.group.subject.name}</span>
             </div>`).join('')}
           </div>
@@ -435,7 +461,7 @@ async function rPayments(el){
           <div class="ig"><label class="il">Summa (so'm)</label>
             <input id="pfA" type="number" class="inp" placeholder="200 000" style="font-size:20px;font-weight:700" oninput="pfFmt(this.value)"/>
             <div id="pfFD" style="text-align:center;font-size:20px;font-weight:700;color:#07568A;padding:6px 0;display:none"></div>
-            ${selGs.size>1?`<div style="font-size:12px;color:#9ca3af;margin-top:4px">* ${selGs.size} ta guruh uchun teng bo'linadi</div>`:''}
+            ${selGIds.size>1?`<div style="font-size:12px;color:#9ca3af;margin-top:4px">* ${selGIds.size} ta guruh uchun teng bo'linadi</div>`:''}
           </div>
           <div style="display:flex;gap:8px;margin-bottom:12px">
             <button onclick="pfFull()" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid ${!isPartial?'#07568A':'#e5e7eb'};background:${!isPartial?'#07568A':'#fff'};color:${!isPartial?'#fff':'#6b7280'};font-size:13px;font-weight:600;cursor:pointer">To'liq</button>
@@ -444,16 +470,18 @@ async function rPayments(el){
           ${isPartial?`<div class="ig"><label class="il">To'liq narx (so'm)</label><input id="pfTgt" type="number" class="inp" placeholder="300 000"/></div>`:''}
           <div class="tabs"><button class="tab${pt==='cash'?' on':''}" onclick="pfPT('cash')">Naqd</button><button class="tab${pt==='card'?' on':''}" onclick="pfPT('card')">Karta</button></div>
           <button class="btn bp" onclick="pfSave(${student.id})">✓ To'lovni saqlash</button>`);
-        window.pfG=id=>{if(selGs.has(id))selGs.delete(id);else selGs.add(id);draw();};
+        if(prevAmt){const el2=document.getElementById('pfA');if(el2){el2.value=prevAmt;window.pfFmt(prevAmt);}}
+        if(prevTgt){const el2=document.getElementById('pfTgt');if(el2)el2.value=prevTgt;}
+        window.pfG=id=>{if(selGIds.has(id))selGIds.delete(id);else selGIds.add(id);draw();};
         window.pfm=m=>{sm=m;draw();};
         window.pfFmt=v=>{const e=document.getElementById('pfFD');if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
         window.pfFull=()=>{isPartial=false;draw();};window.pfPart=()=>{isPartial=true;draw();};window.pfPT=t=>{pt=t;draw();};
         window.pfSave=async sid=>{
-          const a=document.getElementById('pfA').value;if(!a)return toast('Summani kiriting');if(!selGs.size)return toast('Guruh tanlang');
+          const a=document.getElementById('pfA').value;if(!a)return toast('Summani kiriting');if(!selGIds.size)return toast('Guruh tanlang');
           const tgt=isPartial?document.getElementById('pfTgt')?.value:null;
           try{
-            if(selGs.size>1)await P('/payments/batch',{studentId:sid,groupIds:Array.from(selGs),monthYear:sm,totalAmount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
-            else await P('/payments',{studentId:sid,groupId:Array.from(selGs)[0],monthYear:sm,amount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
+            if(selGIds.size>1)await P('/payments/batch',{studentId:sid,groupIds:Array.from(selGIds),monthYear:sm,totalAmount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
+            else await P('/payments',{studentId:sid,groupId:Array.from(selGIds)[0],monthYear:sm,amount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
             closeModal();toast('✅ To\'lov saqlandi');
           } catch(e){toast('❌ '+e.message);}
         };
