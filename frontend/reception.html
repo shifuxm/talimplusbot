@@ -446,20 +446,20 @@ async function rPayments(el){
       if(typeof student==='string')student=JSON.parse(student);
       const activeGS=student.groupStudents.filter(gs=>gs.status==='active');
       const months=sixMonths();let sm=nowMonth();let selGIds=new Set();let pt='cash';let isPartial=false;
-      function draw(){
-        const prevAmt=document.getElementById('pfA')?.value||'';
-        const prevTgt=document.getElementById('pfTgt')?.value||'';
-        openModal(`${student.applicant.firstName} ${student.applicant.lastName}`,`
+      function renderInner(){
+        const mc=document.getElementById('pfModalBody');
+        if(!mc)return;
+        mc.innerHTML=`
           <div class="st">GURUH(LAR)</div>
           <div class="card" style="padding:8px 16px;margin-bottom:16px">
             ${activeGS.map(gs=>`<div class="chkr" onclick="pfG(${gs.group.id})">
-              <div class="chk${selGIds.has(gs.group.id)?' on':''}" id="pfgc_${gs.group.id}">${selGIds.has(gs.group.id)?'✓':''}</div>
+              <div class="chk${selGIds.has(gs.group.id)?' on':''}">${selGIds.has(gs.group.id)?'✓':''}</div>
               <span style="font-size:14px;font-weight:500">${gs.group.name} — ${gs.group.subject.name}</span>
             </div>`).join('')}
           </div>
           <div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="pfm('${m}')">${mLabel(m)}</div>`).join('')}</div>
           <div class="ig"><label class="il">Summa (so'm)</label>
-            <input id="pfA" type="number" class="inp" placeholder="200 000" style="font-size:20px;font-weight:700" oninput="pfFmt(this.value)"/>
+            <input id="pfA" type="number" class="inp" placeholder="200 000" style="font-size:20px;font-weight:700"/>
             <div id="pfFD" style="text-align:center;font-size:20px;font-weight:700;color:#07568A;padding:6px 0;display:none"></div>
             ${selGIds.size>1?`<div style="font-size:12px;color:#9ca3af;margin-top:4px">* ${selGIds.size} ta guruh uchun teng bo'linadi</div>`:''}
           </div>
@@ -469,24 +469,27 @@ async function rPayments(el){
           </div>
           ${isPartial?`<div class="ig"><label class="il">To'liq narx (so'm)</label><input id="pfTgt" type="number" class="inp" placeholder="300 000"/></div>`:''}
           <div class="tabs"><button class="tab${pt==='cash'?' on':''}" onclick="pfPT('cash')">Naqd</button><button class="tab${pt==='card'?' on':''}" onclick="pfPT('card')">Karta</button></div>
-          <button class="btn bp" onclick="pfSave(${student.id})">✓ To'lovni saqlash</button>`);
-        if(prevAmt){const el2=document.getElementById('pfA');if(el2){el2.value=prevAmt;window.pfFmt(prevAmt);}}
-        if(prevTgt){const el2=document.getElementById('pfTgt');if(el2)el2.value=prevTgt;}
-        window.pfG=id=>{if(selGIds.has(id))selGIds.delete(id);else selGIds.add(id);draw();};
-        window.pfm=m=>{sm=m;draw();};
-        window.pfFmt=v=>{const e=document.getElementById('pfFD');if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
-        window.pfFull=()=>{isPartial=false;draw();};window.pfPart=()=>{isPartial=true;draw();};window.pfPT=t=>{pt=t;draw();};
-        window.pfSave=async sid=>{
-          const a=document.getElementById('pfA').value;if(!a)return toast('Summani kiriting');if(!selGIds.size)return toast('Guruh tanlang');
-          const tgt=isPartial?document.getElementById('pfTgt')?.value:null;
-          try{
-            if(selGIds.size>1)await P('/payments/batch',{studentId:sid,groupIds:Array.from(selGIds),monthYear:sm,totalAmount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
-            else await P('/payments',{studentId:sid,groupId:Array.from(selGIds)[0],monthYear:sm,amount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
-            closeModal();toast('✅ To\'lov saqlandi');
-          } catch(e){toast('❌ '+e.message);}
-        };
+          <button class="btn bp" onclick="pfSave(${student.id})">✓ To'lovni saqlash</button>`;
+        document.getElementById('pfA').oninput=function(){window.pfFmt(this.value);};
       }
-      draw();
+      // Modal bir marta ochiladi
+      openModal(`${student.applicant.firstName} ${student.applicant.lastName}`,`<div id="pfModalBody"></div>`);
+      renderInner();
+      window.pfG=id=>{if(selGIds.has(id))selGIds.delete(id);else selGIds.add(id);const a=document.getElementById('pfA')?.value||'';const tg=document.getElementById('pfTgt')?.value||'';renderInner();if(a){document.getElementById('pfA').value=a;window.pfFmt(a);}if(tg&&document.getElementById('pfTgt'))document.getElementById('pfTgt').value=tg;};
+      window.pfm=m=>{sm=m;const a=document.getElementById('pfA')?.value||'';const tg=document.getElementById('pfTgt')?.value||'';renderInner();if(a){document.getElementById('pfA').value=a;window.pfFmt(a);}if(tg&&document.getElementById('pfTgt'))document.getElementById('pfTgt').value=tg;};
+      window.pfFmt=v=>{const e=document.getElementById('pfFD');if(e&&v){e.style.display='block';e.textContent=fmt(v);}else if(e)e.style.display='none';};
+      window.pfFull=()=>{const a=document.getElementById('pfA')?.value||'';isPartial=false;renderInner();if(a){document.getElementById('pfA').value=a;window.pfFmt(a);}};
+      window.pfPart=()=>{const a=document.getElementById('pfA')?.value||'';isPartial=true;renderInner();if(a){document.getElementById('pfA').value=a;window.pfFmt(a);}};
+      window.pfPT=t=>{const a=document.getElementById('pfA')?.value||'';const tg=document.getElementById('pfTgt')?.value||'';pt=t;renderInner();if(a){document.getElementById('pfA').value=a;window.pfFmt(a);}if(tg&&document.getElementById('pfTgt'))document.getElementById('pfTgt').value=tg;};
+      window.pfSave=async sid=>{
+        const a=document.getElementById('pfA').value;if(!a)return toast('Summani kiriting');if(!selGIds.size)return toast('Guruh tanlang');
+        const tgt=isPartial?document.getElementById('pfTgt')?.value:null;
+        try{
+          if(selGIds.size>1)await P('/payments/batch',{studentId:sid,groupIds:Array.from(selGIds),monthYear:sm,totalAmount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
+          else await P('/payments',{studentId:sid,groupId:Array.from(selGIds)[0],monthYear:sm,amount:parseInt(a),targetAmount:tgt?parseInt(tgt):null,isPartial,paymentType:pt});
+          closeModal();toast('✅ To\'lov saqlandi');
+        } catch(e){toast('❌ '+e.message);}
+      };
     };
   }
 
