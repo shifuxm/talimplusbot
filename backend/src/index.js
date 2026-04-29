@@ -21,6 +21,9 @@ try {
 const app = express();
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
+// BigInt JSON serialization fix
+BigInt.prototype.toJSON = function() { return this.toString(); };
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
