@@ -85,13 +85,13 @@ router.get('/today/:groupId', roleCheck('teacher'), async (req, res) => {
   res.json(schedule ? { hasLesson: true, schedule } : { hasLesson: false });
 });
 
-router.post('/group/:groupId', roleCheck('admin'), async (req, res) => {
+router.post('/group/:groupId', roleCheck('admin', 'receptionist'), async (req, res) => {
   try {
     const { dates, startTime, endTime } = req.body;
     const today = moment().tz(TZ).startOf('day').toDate();
     const groupId = parseInt(req.params.groupId);
 
-    const invalid = dates.filter(d => new Date(d) < today || d < '2026-04-01');
+    const invalid = dates.filter(d => new Date(d) < today);
     if (invalid.length) return res.status(400).json({ error: `O'tgan kunlarga ruxsat yo'q: ${invalid.join(', ')}` });
 
     const ops = dates.map(date => prisma.schedule.upsert({
