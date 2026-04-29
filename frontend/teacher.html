@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>O'qituvchi — CRM</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f7fa;overflow-x:hidden}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.topbar{position:sticky;top:0;z-index:50;background:#07568A;color:#fff;padding:0 16px;height:56px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(7,86,138,.3);font-size:17px;font-weight:600}
+.botnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #f3f4f6;display:flex;z-index:100;padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
+.btab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:none;background:transparent;cursor:pointer;font-size:11px;font-weight:500;color:#9ca3af;transition:color .15s}
+.btab.on{color:#07568A}
+.card{background:#fff;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.li{display:flex;align-items:center;padding:14px 16px;background:#fff;border-bottom:1px solid #f3f4f6;cursor:pointer;transition:background .1s}
+.li:first-child{border-radius:16px 16px 0 0}.li:last-child{border-bottom:none;border-radius:0 0 16px 16px}.li:only-child{border-radius:16px}.li:active{background:#f9fafb}
+.lic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border-radius:12px;border:none;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+.bp{background:#07568A;color:#fff}.bs{background:#f3f4f6;color:#374151}
+.chkr{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6;cursor:pointer}
+.chkr:last-child{border-bottom:none}
+.chk{width:24px;height:24px;border-radius:7px;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.chk.on{background:#22c55e;border-color:#22c55e;color:#fff;font-size:13px}
+.pv{padding:16px;padding-bottom:80px}
+.st{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:11px 22px;border-radius:24px;font-size:14px;font-weight:500;z-index:9999;white-space:nowrap;display:none}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div id="loading" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f7fa">
+  <svg style="animation:spin .7s linear infinite" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#07568A" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
+</div>
+
+<div id="app" style="display:none">
+  <div class="topbar" id="pgTitle">Dars jadvali</div>
+  <div id="content" class="pv"></div>
+  <nav class="botnav">
+    <button class="btab on" id="tab_schedule" onclick="tNav('schedule')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Jadval
+    </button>
+    <button class="btab" id="tab_attendance" onclick="tNav('attendance')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Davomat
+    </button>
+    <button class="btab" id="tab_mygroups" onclick="tNav('mygroups')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Guruhlarim
+    </button>
+  </nav>
+</div>
+
+<div id="modals"></div>
+
+<script>
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand();}
+function getTid(){return tg?.initDataUnsafe?.user?.id?.toString()||null;}
+async function api(method,path,body){const r=await fetch('/api'+path,{method,headers:{'Content-Type':'application/json','x-telegram-id':getTid()||''},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw new Error(d.error||'Xatolik');return d;}
+const G=p=>api('GET',p),P=(p,b)=>api('POST',p,b);
+function fmt(n){return Number(n).toLocaleString('ru-RU')+" so'm";}
+function mLabel(my){if(!my)return'';const[y,m]=my.split('-');const ms=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];return ms[parseInt(m)-1]+' '+y;}
+let _tt;function toast(msg,ms=2800){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(_tt);_tt=setTimeout(()=>t.style.display='none',ms);}
+function ldHtml(){return `<div style="display:flex;justify-content:center;padding:48px"><svg style="animation:spin .7s linear infinite" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#07568A" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></div>`;}
+function emHtml(msg){return `<div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📭</div><div style="font-size:14px">${msg}</div></div>`;}
+function openModal(title,html){closeModal();const d=document.createElement('div');d.id='modal';d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:flex-end';d.innerHTML=`<div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:92vh;overflow-y:auto;animation:slideUp .25s ease;overscroll-behavior:contain"><div style="padding:12px 20px 16px;border-bottom:1px solid #f3f4f6;position:sticky;top:0;background:#fff;z-index:10"><div style="width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:18px;font-weight:700">${title}</div><button onclick="closeModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#9ca3af;padding:0">×</button></div></div><div style="padding:16px 20px 32px">${html}</div></div>`;d.addEventListener('click',e=>{if(e.target===d)closeModal();});document.getElementById('modals').appendChild(d);}
+function closeModal(){const m=document.getElementById('modal');if(m)m.remove();}
+
+const TITLES={schedule:'Dars jadvali',attendance:'Davomat',mygroups:'Guruhlarim'};
+
+function tNav(page){
+  document.getElementById('pgTitle').textContent=TITLES[page];
+  ['schedule','attendance','mygroups'].forEach(p=>{
+    document.getElementById(`tab_${p}`).className='btab'+(p===page?' on':'');
+  });
+  const el=document.getElementById('content');
+  el.innerHTML=ldHtml();
+  ({schedule:rSchedule,attendance:rAttendance,mygroups:rMyGroups})[page]?.(el);
+}
+
+// SCHEDULE
+async function rSchedule(el){
+  const today=await G('/schedule/today');
+  const todaySection=today.length===0?
+    `<div style="background:#f9fafb;border-radius:16px;padding:20px;text-align:center;color:#9ca3af;margin-bottom:16px">Bugun dars yo'q</div>`:
+    `<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">${today.map(s=>`
+      <div class="li" style="cursor:default">
+        <div class="lic" style="background:#dbeafe">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:500">${s.group.name}</div>
+          <div style="font-size:12px;color:#9ca3af">${s.group.subject.name}</div>
+        </div>
+        <div style="font-size:14px;font-weight:600;color:#07568A">${s.startTime}–${s.endTime}</div>
+      </div>`).join('')}</div>`;
+
+  el.innerHTML=`
+    <div class="st">BUGUNGI DARSLAR</div>
+    ${todaySection}
+    <button class="btn bs" onclick="showWeek()">Haftalik jadval</button>`;
+
+  window.showWeek=async()=>{
+    el.innerHTML=ldHtml();
+    const week=await G('/schedule/week');
+    const days=['Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba','Yakshanba'];
+    el.innerHTML=`
+      <button class="btn bs" style="margin-bottom:16px" onclick="rSchedule(document.getElementById('content'))">← Orqaga</button>
+      ${week.map((day)=>`
+        <div style="margin-bottom:12px">
+          <div class="st">${day.day} — ${new Date(day.date).toLocaleDateString('uz-UZ')}</div>
+          ${day.schedules.length===0?`<div style="font-size:13px;color:#d1d5db;padding:4px 0">Dars yo'q</div>`:
+          `<div class="card" style="padding:0;overflow:hidden">${day.schedules.map(s=>`
+            <div class="li" style="cursor:default">
+              <div style="flex:1"><div style="font-size:14px;font-weight:500">${s.group.name} — ${s.group.subject.name}</div></div>
+              <div style="font-size:13px;font-weight:600;color:#07568A">${s.startTime}–${s.endTime}</div>
+            </div>`).join('')}</div>`}
+        </div>`).join('')}`;
+  };
+}
+
+// ATTENDANCE
+async function rAttendance(el){
+  const groups=await G('/groups/my');
+  if(!groups.length){el.innerHTML=emHtml("Guruhlaringiz yo'q");return;}
+  el.innerHTML=`
+    <div class="st">GURUH TANLANG</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      ${groups.map(g=>`<div class="li" onclick="attG(${g.id})">
+        <div class="lic" style="background:#dcfce7">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div style="flex:1"><div style="font-size:15px;font-weight:500">${g.name}</div>
+        <div style="font-size:12px;color:#9ca3af">${g.subject?.name} · ${g._count?.groupStudents||0} o'quvchi</div></div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      </div>`).join('')}
+    </div>`;
+
+  window.attG=async gid=>{
+    const{hasLesson,schedule}=await G(`/schedule/today/${gid}`);
+    if(!hasLesson){
+      el.innerHTML=`<button class="btn bs" style="margin-bottom:16px" onclick="rAttendance(document.getElementById('content'))">← Orqaga</button><div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📅</div><div>Bugun dars belgilanmagan</div></div>`;
+      return;
+    }
+    const{students,alreadyTaken}=await G(`/attendance/sheet/${schedule.id}`);
+    let pIds=new Set(alreadyTaken?students.filter(s=>s.isPresent).map(s=>s.groupStudentId):students.map(s=>s.groupStudentId));
+
+    function drawSheet(){
+      el.innerHTML=`
+        <button class="btn bs" style="width:auto;margin-bottom:12px" onclick="rAttendance(document.getElementById('content'))">← Orqaga</button>
+        ${alreadyTaken&&students.length>0?`<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e">⚠️ Davomat avval olingan. Kelmagan o'quvchilarni belgilang.</div>`:''}
+        ${alreadyTaken&&!students.length?`<div style="text-align:center;padding:40px;color:#15803d"><div style="font-size:48px;margin-bottom:12px">✅</div><div>Barcha belgilangan</div></div>`:''}
+        ${students.length>0?`
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span class="st" style="margin:0">${alreadyTaken?'KELMAGAN O\'QUVCHILAR':'BARCHA O\'QUVCHILAR'}</span>
+            <span id="attCnt" style="font-size:13px;color:#07568A;font-weight:700">✅ ${pIds.size}/${students.length}</span>
+          </div>
+          <div class="card" style="padding:8px 16px;margin-bottom:12px">
+            ${students.map(s=>`<div class="chkr" onclick="attTg(${s.groupStudentId})">
+              <div class="chk${pIds.has(s.groupStudentId)?' on':''}" id="att_${s.groupStudentId}">${pIds.has(s.groupStudentId)?'✓':''}</div>
+              <span style="font-size:15px;font-weight:500">${s.firstName} ${s.lastName}</span>
+            </div>`).join('')}
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button class="btn bs" style="flex:1;font-size:13px" onclick="attAll()">Hammasi keldi</button>
+            <button class="btn bs" style="flex:1;font-size:13px" onclick="attClr()">Tozalash</button>
+          </div>
+          <button class="btn bp" onclick="attSave(${schedule.id})">✓ Davomatni saqlash</button>`:''}`;
+      window.attTg=id=>{if(pIds.has(id))pIds.delete(id);else pIds.add(id);const cb=document.getElementById(`att_${id}`);cb.classList.toggle('on',pIds.has(id));cb.textContent=pIds.has(id)?'✓':'';document.getElementById('attCnt').textContent=`✅ ${pIds.size}/${students.length}`;};
+      window.attAll=()=>{pIds=new Set(students.map(s=>s.groupStudentId));drawSheet();};
+      window.attClr=()=>{pIds=new Set();drawSheet();};
+      window.attSave=async sid=>{try{await P(`/attendance/save/${sid}`,{presentIds:Array.from(pIds)});toast('✅ Davomat saqlandi');rAttendance(document.getElementById('content'));}catch(e){toast('❌ '+e.message);}};
+    }
+    drawSheet();
+  };
+}
+
+// MY GROUPS
+async function rMyGroups(el){
+  const groups=await G('/groups/my');
+  if(!groups.length){el.innerHTML=emHtml("Guruhlaringiz yo'q");return;}
+  el.innerHTML=groups.map(g=>`
+    <div class="card" style="padding:16px;margin-bottom:12px;cursor:pointer" onclick="mgG(${g.id})">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:700;font-size:16px">${g.name}</div><div style="font-size:13px;color:#6b7280;margin-top:2px">${g.subject?.name}</div></div>
+        <div style="text-align:right"><div style="font-size:28px;font-weight:700;color:#07568A">${g._count?.groupStudents||0}</div><div style="font-size:11px;color:#9ca3af">o'quvchi</div></div>
+      </div>
+    </div>`).join('');
+
+  window.mgG=async id=>{
+    const sts=await G(`/groups/${id}/students`);
+    const g=groups.find(x=>x.id===id);
+    el.innerHTML=`
+      <button class="btn bs" style="width:auto;margin-bottom:16px" onclick="rMyGroups(document.getElementById('content'))">← Orqaga</button>
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">${g?.name}</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:16px">${g?.subject?.name} — ${sts.length} o'quvchi</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        ${sts.length===0?`<div style="padding:20px;text-align:center;color:#9ca3af">O'quvchilar yo'q</div>`:
+        sts.map((s,i)=>`<div class="li" style="cursor:default">
+          <div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#07568A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-right:12px">${i+1}</div>
+          <div><div style="font-weight:500;font-size:15px">${s.firstName} ${s.lastName}</div>
+          <div style="font-size:12px;color:#9ca3af">${s.phoneSelf||s.phoneFather||'—'}</div></div>
+        </div>`).join('')}
+      </div>`;
+  };
+}
+
+// INIT
+async function init(){
+  try{
+    await G('/auth/me');
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+    tNav('schedule');
+  } catch(e){
+    document.getElementById('loading').innerHTML=`<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px">⛔</div><div style="font-weight:600;color:#374151">Tizimga kirishda xatolik</div></div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
