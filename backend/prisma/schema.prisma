@@ -88,6 +88,7 @@ model Applicant {
   phoneSelf     String?         @map("phone_self")
   phoneFather   String?         @map("phone_father")
   phoneMother   String?         @map("phone_mother")
+  telegramId    BigInt?         @unique @map("telegram_id")
   status        ApplicantStatus @default(waiting)
   createdAt     DateTime        @default(now()) @map("created_at")
 
