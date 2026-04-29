@@ -25,7 +25,11 @@ model User {
   @@map("users")
 }
 
-enum Role { admin receptionist teacher }
+enum Role {
+  admin
+  receptionist
+  teacher
+}
 
 model Subject {
   id        Int      @id @default(autoincrement())
@@ -57,7 +61,10 @@ model Group {
   @@map("groups")
 }
 
-enum GroupStatus { active archived }
+enum GroupStatus {
+  active
+  archived
+}
 
 model GroupTeacherHistory {
   id        Int       @id @default(autoincrement())
@@ -90,8 +97,16 @@ model Applicant {
   @@map("applicants")
 }
 
-enum EducationType   { school college adult }
-enum ApplicantStatus { waiting enrolled }
+enum EducationType {
+  school
+  college
+  adult
+}
+
+enum ApplicantStatus {
+  waiting
+  enrolled
+}
 
 model ApplicantSubject {
   id          Int @id @default(autoincrement())
@@ -132,7 +147,10 @@ model GroupStudent {
   @@map("group_students")
 }
 
-enum GroupStudentStatus { active archived }
+enum GroupStudentStatus {
+  active
+  archived
+}
 
 model Schedule {
   id         Int      @id @default(autoincrement())
@@ -229,6 +247,19 @@ model Settings {
   @@map("settings")
 }
 
-enum PaymentType     { cash card }
-enum ExpenseCategory { staff communal other }
-enum ConversionType  { cash_to_card card_to_cash }
+enum PaymentType {
+  cash
+  card
+}
+
+enum ExpenseCategory {
+  staff
+  communal
+  other
+}
+
+enum ConversionType {
+  cash_to_card
+  card_to_cash
+}
+
