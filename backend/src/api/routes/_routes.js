@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const prisma = require('../../db');
 const roleCheck = require('../middleware/roleCheck');
-const { sendPaymentReport, sendExpenseReport, sendConversionReport, sendAttendanceReport, getBalance } = require('../../services/notificationService');
+const { sendPaymentReport, sendExpenseReport, sendConversionReport, sendAttendanceReport, getBalance, sendPaymentNotifToStudent, sendAttendanceNotifToStudents, sendDebtNotif } = require('../../services/notificationService');
 const moment = require('moment-timezone');
 const TZ = 'Asia/Tashkent';
 
