@@ -757,6 +757,12 @@ async function rDebtors(){
     window.dbLoad=dbLoad;
     dbLoad();
   }
+  window.dbNotify=async(studentId,monthYear,groupId,remaining)=>{
+    try{
+      await P('/notifications/debt',{studentId,groupId,monthYear,remainingAmount:remaining});
+      toast('Xabar yuborildi');
+    }catch(e){toast('❌ '+e.message);}
+  };
   async function dbLoad(){
     const list=document.getElementById('dbList');
     if(!list)return;
@@ -791,13 +797,14 @@ async function rDebtors(){
                   </div>
                   <div style="text-align:right;flex-shrink:0;margin-left:12px">
                     ${s.noPay
-                      ?`<div style="font-size:11px;font-weight:700;color:#ef4444;background:#fee2e2;padding:3px 10px;border-radius:20px">To'lamagan</div>`
+                      ?`<div style="font-size:11px;font-weight:700;color:#ef4444;background:#fee2e2;padding:3px 10px;border-radius:20px;margin-bottom:4px">To'lamagan</div>`
                       :`<div>
                           <div style="font-size:12px;color:#9ca3af">To'langan: <b style="color:#15803d">${fmt(s.paidAmount)}</b></div>
                           ${s.remainingAmount?`<div style="font-size:12px;color:#ef4444;font-weight:600">Qoldi: ${fmt(s.remainingAmount)}</div>`:''}
                           <div style="font-size:11px;font-weight:700;color:#f59e0b;background:#fef9c3;padding:2px 8px;border-radius:20px;margin-top:2px">Qisman</div>
                         </div>`
                     }
+                    <button onclick="dbNotify(${s.studentId},'${selMonth}',${g.groupId},'${s.remainingAmount||'0'}')" style="margin-top:6px;padding:4px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:11px;cursor:pointer;color:#6b7280">Xabar</button>
                   </div>
                 </div>`).join('')}
             </div>
@@ -845,17 +852,29 @@ async function rSettings(el){
 
 // ============ DELETE STAFF ============
 async function rDelStaff(el){
-  async function load(){
+  let dtab='staff';
+  function drawDelTabs(){
+    el.innerHTML=`
+      <div class="tabs">
+        <button class="tab${dtab==='staff'?' on':''}" onclick="dtTab('staff')">Hodimlar</button>
+        <button class="tab${dtab==='students'?' on':''}" onclick="dtTab('students')">O'quvchilar</button>
+      </div>
+      <div id="delContent"></div>`;
+    window.dtTab=t=>{dtab=t;drawDelTabs();if(t==='staff')loadDelStaff();else loadDelStudents();};
+    if(dtab==='staff')loadDelStaff();else loadDelStudents();
+  }
+  async function loadDelStaff(){
+    const dc=document.getElementById('delContent');
+    dc.innerHTML=ldHtml();
     const staff=await G('/staff');
-    el.innerHTML=`<div class="st" style="margin-bottom:12px">HODIMLARNI O'CHIRISH</div>
-      ${staff.length===0?emHtml("Hodimlar yo'q"):`<div class="card" style="padding:0;overflow:hidden">${staff.map(s=>`<div class="li">
-        <div class="lic" style="background:#fee2e2">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <div style="flex:1"><div style="font-size:15px;font-weight:500">${s.firstName} ${s.lastName}</div>
-        <div style="font-size:12px;color:#9ca3af">${s.role==='teacher'?"O'qituvchi":'Qabulxona'}${s.subject?' · '+s.subject:''}</div></div>
-        <button class="btn bd bsm" onclick="dsConf(${s.id},'${s.firstName} ${s.lastName}')">O'chirish</button>
-      </div>`).join('')}</div>`}`;
+    dc.innerHTML=staff.length===0?emHtml("Hodimlar yo'q"):`<div class="card" style="padding:0;overflow:hidden">${staff.map(s=>`<div class="li">
+      <div class="lic" style="background:#fee2e2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div style="flex:1"><div style="font-size:15px;font-weight:500">${s.firstName} ${s.lastName}</div>
+      <div style="font-size:12px;color:#9ca3af">${s.role==='teacher'?"O'qituvchi":'Qabulxona'}${s.subject?' · '+s.subject:''}</div></div>
+      <button class="btn bd bsm" onclick="dsConf(${s.id},'${s.firstName} ${s.lastName}')">O'chirish</button>
+    </div>`).join('')}</div>`;
     window.dsConf=(id,name)=>{
       openModal("O'chirishni tasdiqlang",`
         <div style="font-size:15px;color:#6b7280;margin-bottom:20px"><b>${name}</b> ni o'chirishni tasdiqlaysizmi?</div>
@@ -863,10 +882,39 @@ async function rDelStaff(el){
           <button class="btn bd" onclick="doDs(${id})">O'chirish</button>
           <button class="btn bs" onclick="closeModal()">Bekor qilish</button>
         </div>`);
-      window.doDs=async id2=>{try{await D(`/staff/${id2}?action=delete`);closeModal();toast("O'chirildi");load();}catch(e){toast('❌ '+e.message);}};
+      window.doDs=async id2=>{try{await D(`/staff/${id2}?action=delete`);closeModal();toast("O'chirildi");loadDelStaff();}catch(e){toast('❌ '+e.message);}};
     };
   }
-  load();
+  async function loadDelStudents(){
+    const dc=document.getElementById('delContent');
+    dc.innerHTML=`<div class="sbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Ism yoki familya..." oninput="dstSrch(this.value)"/></div><div id="dstList">${ldHtml()}</div>`;
+    window.dstSrch=async v=>{
+      const list=document.getElementById('dstList');
+      if(!list)return;
+      const data=await G(`/students${v.length>=2?`?search=${encodeURIComponent(v)}`:''}`);
+      if(!data.length){list.innerHTML=emHtml("Topilmadi");return;}
+      list.innerHTML=`<div class="card" style="padding:0;overflow:hidden">${data.map(s=>`<div class="li">
+        <div style="flex:1"><div style="font-size:15px;font-weight:500">${s.applicant.firstName} ${s.applicant.lastName}</div>
+        <div style="font-size:12px;color:#9ca3af">${s.groupStudents.map(gs=>gs.group.subject.name).join(', ')}</div></div>
+        <button class="btn bd bsm" onclick="dstConf(${s.id},'${s.applicant.firstName} ${s.applicant.lastName}')">O'chirish</button>
+      </div>`).join('')}</div>`;
+    };
+    window.dstConf=(id,name)=>{
+      openModal("O'quvchini o'chirish",`
+        <div style="font-size:15px;color:#6b7280;margin-bottom:8px"><b>${name}</b> ni o'chirishni tasdiqlaysizmi?</div>
+        <div style="font-size:13px;color:#ef4444;margin-bottom:20px">Barcha to'lovlar va davomat tarixi ham o'chib ketadi!</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn bd" onclick="dstDel(${id})">Butunlay o'chirish</button>
+          <button class="btn bs" onclick="closeModal()">Bekor qilish</button>
+        </div>`);
+      window.dstDel=async id2=>{
+        try{await D(`/students/${id2}`);closeModal();toast("O'chirildi");window.dstSrch('');}
+        catch(e){toast('❌ '+e.message);}
+      };
+    };
+    window.dstSrch('');
+  }
+  drawDelTabs();
 }
 
 init();
