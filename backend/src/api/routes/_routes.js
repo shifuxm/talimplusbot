@@ -295,7 +295,7 @@ debtRouter.get('/', roleCheck('admin', 'receptionist'), async (req, res) => {
     const groupStudents = await prisma.groupStudent.findMany({
       where: { status: 'active' },
       include: {
-        group: { include: { subject: true } },
+        group: { include: { subject: true, teacher: { select: { firstName: true, lastName: true } } } },
         student: {
           include: {
             applicant: { select: { firstName: true, lastName: true, phoneSelf: true, phoneFather: true, phoneMother: true } },
@@ -310,29 +310,65 @@ debtRouter.get('/', roleCheck('admin', 'receptionist'), async (req, res) => {
       const groupPayments = gs.student.payments.filter(p => p.groupId === gs.groupId);
       const paidAmount = groupPayments.reduce((s, p) => s + p.amount, BigInt(0));
       const targetAmount = groupPayments.find(p => p.targetAmount)?.targetAmount || null;
+      const hasPartial = groupPayments.some(p => p.isPartial === true);
 
-      const maxAmt = maxAmount ? BigInt(maxAmount) : BigInt(1);
-      const isDebtor = maxAmount ? paidAmount < maxAmt : paidAmount === BigInt(0);
+      // Qarzdor hisoblanishi uchun shartlar:
+      // 1. maxAmount berilgan bo'lsa: to'langan summa < maxAmount
+      // 2. maxAmount berilmagan bo'lsa: umuman to'lov yo'q YOKI qisman to'lov qilgan
+      let isDebtor = false;
+      if (maxAmount) {
+        isDebtor = paidAmount < BigInt(maxAmount);
+      } else {
+        // Hech to'lamagan yoki qisman to'lagan (targetAmount bor va to'liq to'lamagan)
+        isDebtor = paidAmount === BigInt(0) || hasPartial;
+      }
+
+      // Agar targetAmount bor va to'liq to'langan bo'lsa — qarzdor emas
+      if (targetAmount && paidAmount >= targetAmount) isDebtor = false;
 
       if (isDebtor) {
         const key = gs.groupId;
         if (!result[key]) {
-          result[key] = { groupId: gs.groupId, groupName: gs.group.name, subjectName: gs.group.subject.name, students: [] };
+          result[key] = {
+            groupId: gs.groupId,
+            groupName: gs.group.name,
+            subjectName: gs.group.subject.name,
+            teacherName: gs.group.teacher ? `${gs.group.teacher.firstName} ${gs.group.teacher.lastName}` : null,
+            students: []
+          };
         }
+        const remaining = targetAmount ? (targetAmount - paidAmount) : null;
         result[key].students.push({
           studentId: gs.student.id,
           firstName: gs.student.applicant.firstName,
           lastName: gs.student.applicant.lastName,
           phoneSelf: gs.student.applicant.phoneSelf,
           phoneFather: gs.student.applicant.phoneFather,
+          phoneMother: gs.student.applicant.phoneMother,
           paidAmount: paidAmount.toString(),
           targetAmount: targetAmount?.toString() || null,
-          remainingAmount: targetAmount ? (targetAmount - paidAmount).toString() : null
+          remainingAmount: remaining ? remaining.toString() : null,
+          isPartial: hasPartial,
+          noPay: paidAmount === BigInt(0)
         });
       }
     }
 
-    res.json(Object.values(result));
+    // Har bir guruhda o'quvchilarni: avval to'lamaganlar, keyin qisman to'laganlar
+    const groups = Object.values(result).map(g => ({
+      ...g,
+      students: g.students.sort((a, b) => {
+        if (a.noPay && !b.noPay) return -1;
+        if (!a.noPay && b.noPay) return 1;
+        return 0;
+      }),
+      totalDebt: g.students.reduce((sum, s) => {
+        const rem = s.remainingAmount ? BigInt(s.remainingAmount) : BigInt(0);
+        return sum + rem;
+      }, BigInt(0)).toString()
+    }));
+
+    res.json(groups);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
