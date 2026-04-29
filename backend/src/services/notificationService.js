@@ -223,7 +223,104 @@ async function sendApplicantsReport() {
   } catch (e) { console.error('Applicants report xatolik:', e.message); }
 }
 
+// O'quvchiga to'lov haqida bot xabari
+async function sendPaymentNotifToStudent({ studentId, groupId, monthYear, amount, paymentType }) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: { applicant: true }
+    });
+    const group = await prisma.group.findUnique({
+      where: { id: groupId }, include: { subject: true }
+    });
+    if (!student || !group) return;
+    const a = student.applicant;
+    const tgIds = [a.telegramId].filter(Boolean);
+    if (!tgIds.length) return;
+
+    const text = `To'lov qabul qilindi!\n\n` +
+      `O'quvchi: ${a.firstName} ${a.lastName}\n` +
+      `Fan: ${group.subject.name} | Guruh: ${group.name}\n` +
+      `Oy: ${monthYear}\n` +
+      `Summa: ${fmt(amount)} (${paymentType === 'cash' ? 'Naqd' : 'Karta'})\n\n` +
+      `Rahmat! Savollar uchun qabulxonaga murojaat qiling.`;
+
+    for (const tgId of tgIds) {
+      try { await bot.telegram.sendMessage(tgId.toString(), text); } catch(e) {}
+    }
+  } catch (e) { console.error('Student payment notif xatolik:', e.message); }
+}
+
+// Davomat olinganidan 30 daqiqa keyin o'quvchiga xabar
+async function sendAttendanceNotifToStudents(scheduleId) {
+  try {
+    const schedule = await prisma.schedule.findUnique({
+      where: { id: scheduleId },
+      include: {
+        group: {
+          include: {
+            subject: true,
+            groupStudents: {
+              where: { status: 'active' },
+              include: {
+                student: { include: { applicant: true } },
+                attendances: { where: { scheduleId } }
+              }
+            }
+          }
+        }
+      }
+    });
+    if (!schedule) return;
+
+    for (const gs of schedule.group.groupStudents) {
+      const att = gs.attendances[0];
+      const a = gs.student.applicant;
+      const tgId = a.telegramId;
+      if (!tgId) continue;
+
+      const dateStr = moment(schedule.lessonDate).tz(TZ).format('DD.MM.YYYY');
+      let text;
+      if (att?.isPresent) {
+        text = `Davomat: ${schedule.group.name}\n\n` +
+          `${a.firstName} ${a.lastName} bugun (${dateStr}) darsga keldi.\n` +
+          `Fan: ${schedule.group.subject.name}\n` +
+          `Vaqt: ${schedule.startTime}-${schedule.endTime}`;
+      } else {
+        text = `Davomat: ${schedule.group.name}\n\n` +
+          `${a.firstName} ${a.lastName} bugun (${dateStr}) darsga kelmadi.\n` +
+          `Fan: ${schedule.group.subject.name}\n` +
+          `Vaqt: ${schedule.startTime}-${schedule.endTime}\n\n` +
+          `Agar xato bo'lsa, qabulxona bilan bog'laning.`;
+      }
+      try { await bot.telegram.sendMessage(tgId.toString(), text); } catch(e) {}
+    }
+  } catch (e) { console.error('Attendance notif xatolik:', e.message); }
+}
+
+// Qarzdorlarga bot xabari
+async function sendDebtNotif({ studentId, groupId, monthYear, remainingAmount }) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId }, include: { applicant: true }
+    });
+    const group = await prisma.group.findUnique({ where: { id: groupId }, include: { subject: true } });
+    if (!student || !group) return;
+    const a = student.applicant;
+    if (!a.telegramId) return;
+
+    const text = `To'lov eslatmasi\n\n` +
+      `${a.firstName} ${a.lastName},\n` +
+      `${group.subject.name} (${group.name}) uchun ${monthYear} oyi to'lovi qolmoqda.\n` +
+      (remainingAmount ? `Qoldiq summa: ${fmt(remainingAmount)}\n` : '') +
+      `\nIltimos, to'lovni amalga oshiring yoki qabulxona bilan bog'laning.`;
+
+    try { await bot.telegram.sendMessage(a.telegramId.toString(), text); } catch(e) {}
+  } catch (e) { console.error('Debt notif xatolik:', e.message); }
+}
+
 module.exports = {
   sendPaymentReport, sendExpenseReport, sendConversionReport,
-  sendAttendanceReport, sendApplicantsReport, getBalance
+  sendAttendanceReport, sendApplicantsReport, getBalance,
+  sendPaymentNotifToStudent, sendAttendanceNotifToStudents, sendDebtNotif
 };
