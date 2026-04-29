@@ -282,31 +282,115 @@ async function rApplicants(el){
 
 // ============ GROUPS ============
 async function rGroups(el){
+  let tab='active';
   async function load(){
-    const gs=await G('/groups');
-    el.innerHTML=`<div class="card" style="padding:0;overflow:hidden">
-      ${gs.length===0?`<div style="padding:20px;text-align:center;color:#9ca3af">Guruhlar yo'q</div>`:
-      gs.map(g=>`<div class="li" onclick="gOpen(${g.id})">
-        <div class="lic" style="background:#dcfce7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <div style="flex:1"><div style="font-size:15px;font-weight:500">${g.name}</div><div style="font-size:12px;color:#9ca3af">${g.subject?.name} · ${g.teacher?.firstName||''} ${g.teacher?.lastName||''}</div></div>
-        <div style="text-align:right"><div style="font-size:20px;font-weight:700;color:#07568A">${g._count?.groupStudents||0}</div><div style="font-size:11px;color:#9ca3af">o'quvchi</div></div>
-      </div>`).join('')}
-    </div>`;
+    el.innerHTML=ldHtml();
+    try{
+      const[groups,subs,teachers]=await Promise.all([G(`/groups?status=${tab}`),G('/subjects'),G('/staff?role=teacher')]);
+      el.innerHTML=`
+        <div class="tabs">
+          <button class="tab${tab==='active'?' on':''}" onclick="grTab('active')">Faol</button>
+          <button class="tab${tab==='archived'?' on':''}" onclick="grTab('archived')">Arxiv</button>
+        </div>
+        ${tab==='active'?`<button class="btn bp" style="margin-bottom:16px" onclick='openGrForm(null,${JSON.stringify(subs).replace(/"/g,"&quot;")},${JSON.stringify(teachers).replace(/"/g,"&quot;")})'>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Guruh qo'shish
+        </button>`:''}
+        ${groups.length===0?emHtml("Guruhlar yo'q"):`<div class="card" style="padding:0;overflow:hidden">
+          ${groups.map(g=>`
+            <div class="li" onclick='openGrDetail(${g.id},${JSON.stringify(subs).replace(/"/g,"&quot;")},${JSON.stringify(teachers).replace(/"/g,"&quot;")})'>
+              <div class="lic" style="background:#dbeafe">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:15px;font-weight:500">${g.name}</div>
+                <div style="font-size:12px;color:#9ca3af">${g.subject.name} · ${g.teacher?g.teacher.firstName+' '+g.teacher.lastName:"O'qituvchi yo'q"} · ${g._count.groupStudents} o'quvchi</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </div>`).join('')}
+        </div>`}`;
+      window.grTab=t=>{tab=t;load();};
+    }catch(e){el.innerHTML=emHtml('Xatolik: '+e.message);}
   }
-  window.gOpen=async id=>{
-    const[gs2,sts]=await Promise.all([G('/groups'),G(`/groups/${id}/students`)]);
-    const g=gs2.find(x=>x.id===id);
-    openModal(g?.name||'Guruh',`
-      <div style="font-size:13px;color:#6b7280;margin-bottom:16px">${g?.subject?.name} · ${g?.teacher?.firstName||''} ${g?.teacher?.lastName||''}</div>
-      <div class="st">O'QUVCHILAR (${sts.length})</div>
-      <div style="max-height:300px;overflow-y:auto">
-        ${sts.length===0?`<div style="text-align:center;padding:20px;color:#9ca3af">O'quvchilar yo'q</div>`:
-        sts.map((s,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f3f4f6">
-          <div style="width:28px;height:28px;border-radius:50%;background:#dbeafe;color:#07568A;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${i+1}</div>
-          <div><div style="font-weight:500;font-size:14px">${s.firstName} ${s.lastName}</div><div style="font-size:12px;color:#9ca3af">${s.phoneSelf||s.phoneFather||'—'}</div></div>
-        </div>`).join('')}
-      </div>`);
+
+  window.openGrForm=(data,subs,teachers)=>{
+    if(typeof subs==='string')subs=JSON.parse(subs);
+    if(typeof teachers==='string')teachers=JSON.parse(teachers);
+    if(data&&typeof data==='string')data=JSON.parse(data);
+    const isEdit=!!data;
+    openModal(isEdit?"Guruhni tahrirlash":"Guruh qo'shish",`
+      <div class="ig"><label class="il">Guruh nomi</label><input id="gr_name" class="inp" value="${data?.name||''}" placeholder="Masalan: Matematika-1"/></div>
+      ${!isEdit?`<div class="ig"><label class="il">Fan</label><select id="gr_sub" class="inp">
+        <option value="">Fan tanlang</option>
+        ${subs.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+      </select></div>`:''}
+      <div class="ig"><label class="il">O'qituvchi</label><select id="gr_teacher" class="inp">
+        <option value="">O'qituvchi tanlang</option>
+        ${teachers.map(t=>`<option value="${t.id}" ${data?.teacherId===t.id?'selected':''}>${t.firstName} ${t.lastName} — ${t.subject||''}</option>`).join('')}
+      </select></div>
+      <button class="btn bp" onclick="saveGr(${isEdit?data.id:'null'})">✓ Saqlash</button>
+      ${isEdit?`<button class="btn bd" style="margin-top:8px" onclick="archiveGr(${data.id})">Arxivga o'tkazish</button>`:''}
+    `);
   };
+
+  window.saveGr=async id=>{
+    const name=document.getElementById('gr_name').value.trim();
+    const teacherId=document.getElementById('gr_teacher').value;
+    const subjectId=id?null:document.getElementById('gr_sub')?.value;
+    if(!name)return toast('Guruh nomi kerak');
+    if(!teacherId)return toast("O'qituvchi tanlang");
+    if(!id&&!subjectId)return toast('Fan tanlang');
+    try{
+      if(id)await U(`/groups/${id}`,{name,teacherId:parseInt(teacherId)});
+      else await P('/groups',{name,subjectId:parseInt(subjectId),teacherId:parseInt(teacherId)});
+      closeModal();toast('✅ Saqlandi');load();
+    }catch(e){toast('❌ '+e.message);}
+  };
+
+  window.archiveGr=async id=>{
+    if(!confirm("Guruhni arxivga o'tkazasizmi?"))return;
+    try{await D(`/groups/${id}?action=archive`);closeModal();toast('Arxivlandi');load();}
+    catch(e){toast('❌ '+e.message);}
+  };
+
+  window.openGrDetail=async(id,subs,teachers)=>{
+    if(typeof subs==='string')subs=JSON.parse(subs);
+    if(typeof teachers==='string')teachers=JSON.parse(teachers);
+    el.innerHTML=ldHtml();
+    try{
+      const[sts,allGroups]=await Promise.all([G(`/groups/${id}/students`),G('/groups?status=active')]);
+      const grp=allGroups.find(x=>x.id===id);
+      const grpName=grp?.name||'Guruh';
+      const subName=grp?.subject?.name||'';
+      const teacherName=grp?.teacher?`${grp.teacher.firstName} ${grp.teacher.lastName}`:"O'qituvchi yo'q";
+      el.innerHTML=`
+        <button class="btn bs" style="width:auto;margin-bottom:16px" onclick="rGroups(document.getElementById('content'))">← Orqaga</button>
+        <div class="card" style="padding:16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-weight:700;font-size:18px;margin-bottom:4px">${grpName}</div>
+              <div style="font-size:13px;color:#6b7280">${subName}</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:2px">O'qituvchi: <b>${teacherName}</b></div>
+            </div>
+            <button class="btn bp bsm" onclick='openGrForm(${JSON.stringify(grp).replace(/"/g,"&quot;")},${JSON.stringify(subs).replace(/"/g,"&quot;")},${JSON.stringify(teachers).replace(/"/g,"&quot;")})'>Tahrirlash</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="st" style="margin:0">O'QUVCHILAR (${sts.length})</div>
+        </div>
+        ${sts.length===0?emHtml("O'quvchilar yo'q"):
+        `<div class="card" style="padding:0;overflow:hidden">
+          ${sts.map((s,i)=>`<div class="li" style="cursor:default">
+            <div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#07568A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-right:12px">${i+1}</div>
+            <div style="flex:1">
+              <div style="font-size:15px;font-weight:500">${s.firstName} ${s.lastName}</div>
+              <div style="font-size:12px;color:#9ca3af">${s.phoneSelf||s.phoneFather||'—'}</div>
+            </div>
+            <span style="font-size:11px;background:${s.status==='active'?'#dcfce7':'#f3f4f6'};color:${s.status==='active'?'#15803d':'#6b7280'};padding:3px 10px;border-radius:20px;font-weight:600">${s.status==='active'?'Faol':'Arxiv'}</span>
+          </div>`).join('')}
+        </div>`}`;
+    }catch(e){el.innerHTML=emHtml('Xatolik: '+e.message);}
+  };
+
   load();
 }
 
