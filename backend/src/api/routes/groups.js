@@ -64,7 +64,7 @@ router.get('/:id/teacher-history', roleCheck('admin', 'receptionist'), async (re
   res.json(history);
 });
 
-router.post('/', roleCheck('admin'), async (req, res) => {
+router.post('/', roleCheck('admin', 'receptionist'), async (req, res) => {
   try {
     const { name, subjectId, teacherId } = req.body;
     if (!name || !subjectId || !teacherId) return res.status(400).json({ error: 'Barcha maydonlar kerak' });
@@ -113,7 +113,7 @@ router.put('/:id', roleCheck('admin', 'receptionist'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.delete('/:id', roleCheck('admin'), async (req, res) => {
+router.delete('/:id', roleCheck('admin', 'receptionist'), async (req, res) => {
   const { action } = req.query;
   if (action === 'archive') {
     await prisma.group.update({ where: { id: parseInt(req.params.id) }, data: { status: 'archived' } });
