@@ -113,6 +113,7 @@ const ADMIN_NAV=[
   {id:'students',label:"O'quvchilar",svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>'},
   {id:'staff',label:'Hodimlar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'},
   {id:'schedule',label:'Dars jadvali',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'},
+
   {id:'finance',label:'Kirim-Chiqim',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'},
   {id:'settings',label:'Sozlamalar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 12 2a10 10 0 0 0-7.07 2.93M4.93 4.93A10 10 0 0 0 2 12a10 10 0 0 0 2.93 7.07M19.07 19.07A10 10 0 0 0 22 12a10 10 0 0 0-2.93-7.07M12 22a10 10 0 0 0 7.07-2.93"/></svg>'},
   {id:'delstaff',label:"O'chirish",svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'},
@@ -404,46 +405,73 @@ async function rSchedule(el){
       };
       window.schLoadCal=async()=>{
         const gid=document.getElementById('schG').value;if(!gid)return;
-        const now=new Date(),month=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        const ex=await G(`/schedule/group/${gid}?month=${month}`);
-        let selDates=ex.map(s=>s.lessonDate.slice(0,10));
-        const calEl=document.getElementById('schCalSec');
-        const today=now.toISOString().slice(0,10);
-        const y=now.getFullYear(),m=now.getMonth();
-        const dim=new Date(y,m+1,0).getDate(),fd=new Date(y,m,1).getDay();
-        const adj=fd===0?6:fd-1;
-        const days2=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
+        const now=new Date();
+        const todayStr=now.toISOString().slice(0,10);
+        // Oy tanlash uchun: joriy + keyingi 3 oy
         const mns=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
-        const cells=[];
-        for(let i=0;i<adj;i++)cells.push('<div></div>');
-        for(let d=1;d<=dim;d++){
-          const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          const isPast=ds<today||ds<'2026-04-01';
-          const isSel=selDates.includes(ds);
-          const isTd=ds===today;
-          cells.push(`<div class="cald${isSel?' sel':''}${isTd&&!isSel?' td':''}${isPast?' past':''}" onclick="schTog(this,'${ds}')">${d}</div>`);
+        const availMonths=[];
+        for(let i=0;i<4;i++){
+          const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+          availMonths.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
         }
-        calEl.innerHTML=`
-          <div class="card" style="padding:16px;margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <span style="font-weight:600">${mns[m]} ${y}</span>
-              <span id="schCnt" style="font-size:13px;color:#07568A;font-weight:600">${selDates.length} ta tanlandi</span>
+        let curMon=availMonths[0];
+        let selDates=[];
+        let stTime='09:00',enTime='11:00';
+        const calEl=document.getElementById('schCalSec');
+
+        async function renderCal(){
+          const ex=await G(`/schedule/group/${gid}?month=${curMon}`);
+          selDates=ex.map(s=>s.lessonDate.slice(0,10));
+          const[cy,cm2]=curMon.split('-').map(Number);
+          const m=cm2-1;
+          const dim=new Date(cy,m+1,0).getDate(),fd=new Date(cy,m,1).getDay();
+          const adj=fd===0?6:fd-1;
+          const days2=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
+          const cells=[];
+          for(let i=0;i<adj;i++)cells.push('<div></div>');
+          for(let d=1;d<=dim;d++){
+            const ds=`${cy}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const isPast=ds<todayStr;
+            const isSel=selDates.includes(ds);
+            const isTd=ds===todayStr;
+            cells.push(`<div class="cald${isSel?' sel':''}${isTd&&!isSel?' td':''}${isPast?' past':''}" onclick="schTog(this,'${ds}')">${d}</div>`);
+          }
+          const st=document.getElementById('schSt')?.value||stTime;
+          const en=document.getElementById('schEn')?.value||enTime;
+          calEl.innerHTML=`
+            <div class="mp">${availMonths.map(mo=>`<div class="mpb${mo===curMon?' on':''}" onclick="schMon('${mo}')">${mns[parseInt(mo.split('-')[1])-1]} ${mo.split('-')[0]}</div>`).join('')}</div>
+            <div class="card" style="padding:16px;margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <span style="font-weight:600">${mns[m]} ${cy}</span>
+                <span id="schCnt" style="font-size:13px;color:#07568A;font-weight:600">${selDates.length} ta tanlandi</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">${days2.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:#9ca3af">${d}</div>`).join('')}</div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells.join('')}</div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">${days2.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:#9ca3af">${d}</div>`).join('')}</div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells.join('')}</div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-            <div class="ig" style="margin:0"><label class="il">Boshlanish</label><input type="time" id="schSt" class="inp" value="09:00"/></div>
-            <div class="ig" style="margin:0"><label class="il">Tugash</label><input type="time" id="schEn" class="inp" value="11:00"/></div>
-          </div>
-          <button class="btn bp" onclick="saveSch('${gid}')">✓ Jadvalni saqlash</button>`;
-        window.schTog=(el2,date)=>{const i=selDates.indexOf(date);if(i>-1){selDates.splice(i,1);el2.classList.remove('sel');}else{selDates.push(date);el2.classList.add('sel');}document.getElementById('schCnt').textContent=`${selDates.length} ta tanlandi`;};
-        window.saveSch=async gid2=>{
-          if(!selDates.length)return toast('Kamida 1 kun tanlang');
-          const st=document.getElementById('schSt').value,en=document.getElementById('schEn').value;
-          try{await P(`/schedule/group/${gid2}`,{dates:selDates,startTime:st,endTime:en});toast('✅ Jadval saqlandi');}
-          catch(e){toast('❌ '+e.message);}
-        };
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+              <div class="ig" style="margin:0"><label class="il">Boshlanish</label><input type="time" id="schSt" class="inp" value="${st}"/></div>
+              <div class="ig" style="margin:0"><label class="il">Tugash</label><input type="time" id="schEn" class="inp" value="${en}"/></div>
+            </div>
+            <button class="btn bp" onclick="saveSch('${gid}')">✓ Jadvalni saqlash</button>`;
+          window.schTog=(el2,date)=>{
+            const i=selDates.indexOf(date);
+            if(i>-1){selDates.splice(i,1);el2.classList.remove('sel');}
+            else{selDates.push(date);el2.classList.add('sel');}
+            document.getElementById('schCnt').textContent=`${selDates.length} ta tanlandi`;
+          };
+          window.schMon=async mo=>{
+            stTime=document.getElementById('schSt')?.value||stTime;
+            enTime=document.getElementById('schEn')?.value||enTime;
+            curMon=mo;await renderCal();
+          };
+          window.saveSch=async gid2=>{
+            if(!selDates.length)return toast('Kamida 1 kun tanlang');
+            const st2=document.getElementById('schSt').value,en2=document.getElementById('schEn').value;
+            try{await P(`/schedule/group/${gid2}`,{dates:selDates,startTime:st2,endTime:en2});toast('✅ Jadval saqlandi');}
+            catch(e){toast('❌ '+e.message);}
+          };
+        }
+        renderCal();
       };
     };
   }
@@ -529,12 +557,39 @@ async function rFinance(el){
           </div>
           <button class="btn bp" onclick="savePay(${student.id})">✓ To'lovni saqlash</button>
         `);
-        window.pgTog=id=>{if(selGs.has(id))selGs.delete(id);else selGs.add(id);draw();};
-        window.pmSel=m=>{sm=m;draw();};
+        window.pgTog=id=>{
+          const prevAmt=document.getElementById('pmAmt')?.value||'';
+          const prevTgt=document.getElementById('pmTarget')?.value||'';
+          if(selGs.has(id))selGs.delete(id);else selGs.add(id);
+          draw();
+          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
+          if(prevTgt){const el2=document.getElementById('pmTarget');if(el2)el2.value=prevTgt;}
+        };
+        window.pmSel=m=>{
+          const prevAmt=document.getElementById('pmAmt')?.value||'';
+          const prevTgt=document.getElementById('pmTarget')?.value||'';
+          sm=m;draw();
+          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
+          if(prevTgt){const el2=document.getElementById('pmTarget');if(el2)el2.value=prevTgt;}
+        };
         window.pmFmt=v=>{const e=document.getElementById('pmFD');if(v){e.style.display='block';e.textContent=fmt(v);}else e.style.display='none';};
-        window.pisFull=()=>{isPartial=false;draw();};
-        window.pisPartial=()=>{isPartial=true;draw();};
-        window.pmPT=t=>{pt=t;draw();};
+        window.pisFull=()=>{
+          const prevAmt=document.getElementById('pmAmt')?.value||'';
+          isPartial=false;draw();
+          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
+        };
+        window.pisPartial=()=>{
+          const prevAmt=document.getElementById('pmAmt')?.value||'';
+          isPartial=true;draw();
+          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
+        };
+        window.pmPT=t=>{
+          const prevAmt=document.getElementById('pmAmt')?.value||'';
+          const prevTgt=document.getElementById('pmTarget')?.value||'';
+          pt=t;draw();
+          if(prevAmt){const el2=document.getElementById('pmAmt');if(el2){el2.value=prevAmt;window.pmFmt(prevAmt);}}
+          if(prevTgt){const el2=document.getElementById('pmTarget');if(el2)el2.value=prevTgt;}
+        };
         window.savePay=async sid=>{
           const amt=document.getElementById('pmAmt').value;
           if(!amt)return toast('Summani kiriting');
