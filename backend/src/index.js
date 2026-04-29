@@ -48,6 +48,7 @@ app.use('/api/debtors',     require('./api/routes/debtors'));
 app.use('/api/balance',     require('./api/routes/balance'));
 app.use('/api/results',     require('./api/routes/results'));
 app.use('/api/settings',    require('./api/routes/settings'));
+app.use('/api/notifications', require('./api/routes/notifications'));
 
 // Bot
 require('./bot')(bot);
