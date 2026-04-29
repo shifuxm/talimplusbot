@@ -219,7 +219,12 @@ async function rMyGroups(el){
         sts.map((s,i)=>`<div class="li" style="cursor:default">
           <div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#07568A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-right:12px">${i+1}</div>
           <div><div style="font-weight:500;font-size:15px">${s.firstName} ${s.lastName}</div>
-          <div style="font-size:12px;color:#9ca3af">${s.phoneSelf||s.phoneFather||'—'}</div></div>
+          <div style="font-size:12px;margin-top:2px">
+            ${s.phoneSelf?`<a href="tel:${s.phoneSelf}" style="color:#07568A;text-decoration:none;font-weight:500">${s.phoneSelf}</a>`:''}
+            ${s.phoneSelf&&s.phoneFather?' · ':''}
+            ${s.phoneFather?`<a href="tel:${s.phoneFather}" style="color:#6b7280;text-decoration:none">${s.phoneFather}</a>`:''}
+            ${!s.phoneSelf&&!s.phoneFather?`<span style="color:#9ca3af">—</span>`:''}
+          </div></div>
         </div>`).join('')}
       </div>`;
   };
