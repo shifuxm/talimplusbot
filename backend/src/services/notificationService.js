@@ -319,8 +319,46 @@ async function sendDebtNotif({ studentId, groupId, monthYear, remainingAmount })
   } catch (e) { console.error('Debt notif xatolik:', e.message); }
 }
 
+// Bitta o'quvchiga davomat xabari (groupStudentId bilan)
+async function sendAttendanceNotifToStudent({ groupStudentId, scheduleId, isPresent }) {
+  try {
+    const gs = await prisma.groupStudent.findUnique({
+      where: { id: groupStudentId },
+      include: {
+        student: { include: { applicant: true } },
+        group: { include: { subject: true } }
+      }
+    });
+    if (!gs) return;
+    const a = gs.student.applicant;
+    if (!a.telegramId) return;
+
+    const schedule = await prisma.schedule.findUnique({ where: { id: scheduleId } });
+    if (!schedule) return;
+
+    const dateStr = moment(schedule.lessonDate).tz(TZ).format('DD.MM.YYYY');
+    const subjectName = gs.group.subject.name;
+
+    let text;
+    if (isPresent) {
+      text = `✅ Davomat\n\n` +
+        `${a.firstName} ${a.lastName} bugun (${dateStr}) ${subjectName} darsiga keldi.\n` +
+        `Vaqt: ${schedule.startTime}–${schedule.endTime}`;
+    } else {
+      text = `❌ Davomat\n\n` +
+        `${a.firstName} ${a.lastName} bugun (${dateStr}) ${subjectName} darsiga kelmadi.\n` +
+        `Vaqt: ${schedule.startTime}–${schedule.endTime}\n\n` +
+        `Agar xato bo'lsa, qabulxona bilan bog'laning.`;
+    }
+
+    try { await bot.telegram.sendMessage(a.telegramId.toString(), text); } catch(e) {}
+  } catch (e) { console.error('Attendance single notif xatolik:', e.message); }
+}
+
+
 module.exports = {
   sendPaymentReport, sendExpenseReport, sendConversionReport,
   sendAttendanceReport, sendApplicantsReport, getBalance,
-  sendPaymentNotifToStudent, sendAttendanceNotifToStudents, sendDebtNotif
+  sendPaymentNotifToStudent, sendAttendanceNotifToStudents, sendDebtNotif,
+  sendAttendanceNotifToStudent
 };
