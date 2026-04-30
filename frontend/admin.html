@@ -260,7 +260,7 @@ async function rStats(el){
       for(const e of expenses){
         if(e.category==='staff'){
           const key=e.staffId||'unknown';
-          if(!byStaff[key])byStaff[key]={name:e.staff?`${e.staff.firstName} ${e.staff.lastName}`:'Noma'lum',items:[]};
+          if(!byStaff[key])byStaff[key]={name:e.staff?`${e.staff.firstName} ${e.staff.lastName}`:'Noma\u02bclum',items:[]};
           byStaff[key].items.push(e);
         } else if(e.category==='communal'){
           const key=e.subcategory||'Boshqa';
