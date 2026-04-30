@@ -131,9 +131,10 @@ const REC_NAV=[
   {id:'debtors',label:'Qarzdorlar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'},
   {id:'edit',label:'Tahrirlash',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'},
   {id:'conversion',label:'Konversiya',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>'},
+  {id:'archive',label:"O'chirish/Arxiv",svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'},
 ];
 
-const TITLES={applist:'Qabulga yozilganlar',applicants:'Qabulga yozish',groups:'Guruhlar',payments:"To'lovlar",expenses:'Chiqimlar',debtors:'Qarzdorlar',edit:'Tahrirlash',conversion:'Konversiya'};
+const TITLES={applist:'Qabulga yozilganlar',applicants:'Qabulga yozish',groups:'Guruhlar',payments:"To'lovlar",expenses:'Chiqimlar',debtors:'Qarzdorlar',edit:'Tahrirlash',conversion:'Konversiya',archive:"O'chirish/Arxiv"};
 let curPage='applist';
 
 function setupSidebar(user){
@@ -151,7 +152,7 @@ function nav(page){
   sbClose();
   const el=document.getElementById('content');
   el.innerHTML=ldHtml();
-  ({applist:rAppList,applicants:rApplicants,groups:rGroups,payments:rPayments,expenses:rExpenses,debtors:rDebtors,edit:rEdit,conversion:rConversion})[page]?.(el);
+  ({applist:rAppList,applicants:rApplicants,groups:rGroups,payments:rPayments,expenses:rExpenses,debtors:rDebtors,edit:rEdit,conversion:rConversion,archive:rArchive})[page]?.(el);
 }
 
 // ============ APPLIST ============
@@ -498,11 +499,11 @@ async function rPayments(el){
     }
     function s3(sts){let sr='';
       function d(){const f=sr?sts.filter(s=>`${s.firstName} ${s.lastName}`.toLowerCase().includes(sr.toLowerCase())):sts;
-        pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="s3b()">← Orqaga</button><div class="sbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Qidirish..." oninput="ps3s(this.value)"/></div><div class="card" style="padding:0;overflow:hidden">${f.map(s=>`<div class="li" onclick="ps3(${s.id})"><div style="flex:1;font-weight:500">${s.firstName} ${s.lastName}</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>`).join('')}</div>`;
-        window.ps3s=v=>{sr=v;d();};window.s3b=async()=>{const gs=await G(`/groups?subjectId=${sid}`);s2(gs);};window.ps3=stid=>s4(stid);
+        pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="s3b()">← Orqaga</button><div class="sbox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input placeholder="Qidirish..." oninput="ps3s(this.value)"/></div><div class="card" style="padding:0;overflow:hidden">${f.map(s=>`<div class="li" onclick="ps3(${s.id},'${s.firstName} ${s.lastName}')"><div style="flex:1;font-weight:500">${s.firstName} ${s.lastName}</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>`).join('')}</div>`;
+        window.ps3s=v=>{sr=v;d();};window.s3b=async()=>{const gs=await G(`/groups?subjectId=${sid}`);s2(gs);};window.ps3=(stid,sname)=>s4(stid,sname);
       }d();}
-    function s4(stid){const months=sixMonths();let sm=nowMonth();let pt='cash';let isPartial=false;
-      function d(){pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="s4b()">← Orqaga</button>
+    function s4(stid,sname){const months=sixMonths();let sm=nowMonth();let pt='cash';let isPartial=false;
+      function d(){pc.innerHTML=`<button class="btn bs" style="width:auto;margin-bottom:12px" onclick="s4b()">← Orqaga</button>`+(sname?`<div style="font-size:16px;font-weight:700;margin-bottom:12px;color:#07568A">${sname}</div>`:'')+`
         <div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="s4m('${m}')">${mLabel(m)}</div>`).join('')}</div>
         <div class="ig"><label class="il">Summa (so'm)</label><input id="s4a" type="number" class="inp" style="font-size:20px;font-weight:700" placeholder="200 000" oninput="s4f(this.value)"/><div id="s4fd" style="text-align:center;font-size:20px;font-weight:700;color:#07568A;padding:6px 0;display:none"></div></div>
         <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -697,6 +698,104 @@ async function rConversion(el){
   }
   draw();
 }
+
+
+// ============ ARCHIVE ============
+async function rArchive(el){
+  let tab='active';
+  async function load(){
+    try{
+      const groups=await G('/groups');
+      const ag=groups.filter(g=>g.status==='active');
+      const T_ACT_ON='<button class="tab on" id="tabAct">Faol ʼquvchilar</button>';
+      const T_ACT_OFF='<button class="tab" id="tabAct">Faol ʼquvchilar</button>';
+      const T_ARCH_ON='<button class="tab on" id="tabArch">Arxiv</button>';
+      const T_ARCH_OFF='<button class="tab" id="tabArch">Arxiv</button>';
+      const tabHtml=(active)=>'<div class="tabs">'+(active?T_ACT_ON:T_ACT_OFF)+(active?T_ARCH_OFF:T_ARCH_ON)+'</div>';
+            if(tab==='active'){
+        el.innerHTML=tabHtml(true)
+          +'<div class="st">GURUH TANLANG</div>'
+          +'<div class="card" style="padding:0;overflow:hidden" id="archGList"></div>';
+        document.getElementById('archGList').innerHTML=ag.map(g=>
+          '<div class="li" id="ag'+g.id+'">'
+          +'<div class="lic" style="background:#dcfce7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>'
+          +'<div style="flex:1"><div style="font-size:15px;font-weight:500">'+g.name+'</div>'
+          +'<div style="font-size:12px;color:#9ca3af">'+(g.subject?.name||'')+'</div></div>'
+          +'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
+          +'</div>'
+        ).join('');
+        ag.forEach(g=>{ const el2=document.getElementById('ag'+g.id); if(el2) el2.addEventListener('click',()=>archG(g.id,g,groups)); });
+      } else {
+        const archivedAll=await Promise.all(ag.map(g=>
+          G('/groups/'+g.id+'/students?status=archived').then(sts=>({g,sts})).catch(()=>({g,sts:[]}))
+        ));
+        const hasData=archivedAll.filter(x=>x.sts.length>0);
+        el.innerHTML=tabHtml(false)
+          +(hasData.length===0?emHtml("Arxivda o'quvchilar yo'q"):
+            hasData.map(({g,sts})=>
+              '<div style="margin-bottom:14px"><div class="st">'+g.name+' — '+(g.subject?.name||'')+'</div>'
+              +'<div class="card" style="padding:0;overflow:hidden">'
+              +sts.map(s=>
+                '<div class="li"><div style="flex:1">'
+                +'<div style="font-size:15px;font-weight:500">'+s.firstName+' '+s.lastName+'</div>'
+                +'<div style="font-size:12px;color:#9ca3af">'+(s.phoneSelf||s.phoneFather||'—')+'</div>'
+                +'</div><button class="btn bp bsm" id="rest'+s.id+g.id+'">Qaytarish</button></div>'
+              ).join('')+'</div></div>'
+            ).join('')
+          );
+        hasData.forEach(({g,sts})=>{
+          sts.forEach(s=>{
+            const b=document.getElementById('rest'+s.id+g.id);
+            if(b) b.addEventListener('click',()=>archRestore(s.id,g.id));
+          });
+        });
+      }
+
+      document.getElementById('tabAct')?.addEventListener('click',()=>{tab='active';load();});
+      document.getElementById('tabArch')?.addEventListener('click',()=>{tab='archived';load();});
+
+      async function archG(gid,g,groups2){
+        const sts=await G('/groups/'+gid+'/students');
+        const curMonth=nowMonth();
+        const pays=await Promise.all(sts.map(s=>G('/payments?studentId='+s.id+'&monthYear='+curMonth+'&groupId='+gid).catch(()=>[])));
+        el.innerHTML='<button class="btn bs" style="width:auto;margin-bottom:12px" id="archBack">← Orqaga</button>'
+          +'<div style="font-size:16px;font-weight:700;margin-bottom:4px">'+(g?.name||'')+'</div>'
+          +'<div style="font-size:13px;color:#6b7280;margin-bottom:16px">'+(g?.subject?.name||'')+'</div>'
+          +(sts.length===0?emHtml("O'quvchilar yo'q"):
+            '<div class="card" style="padding:0;overflow:hidden">'
+            +sts.map((s,i)=>{
+              const paid=(pays[i]||[]).reduce((sum,p)=>sum+Number(p.amount),0);
+              const paidStr=paid>0
+                ?'<div style="font-size:12px;color:#15803d;margin-top:2px">'+curMonth+': '+paid.toLocaleString('ru-RU')+" so'm to'langan</div>"
+                :'<div style="font-size:12px;color:#ef4444;margin-top:2px">'+curMonth+": to'lovsiz</div>";
+              return '<div class="li" id="archst'+s.id+'">'
+                +'<div style="flex:1"><div style="font-size:15px;font-weight:500">'+s.firstName+' '+s.lastName+'</div>'
+                +'<div style="font-size:12px;color:#9ca3af;margin-top:1px">'+(s.phoneSelf||s.phoneFather||'—')+'</div>'
+                +paidStr+'</div>'
+                +'<button class="btn bd bsm" id="archb'+s.id+'">Arxivlash</button>'
+                +'</div>';
+            }).join('')+'</div>'
+          );
+        document.getElementById('archBack')?.addEventListener('click',()=>load());
+        sts.forEach(s=>{
+          const b=document.getElementById('archb'+s.id);
+          if(b) b.addEventListener('click',async()=>{
+            try{await D('/students/'+s.id+'/groups/'+gid);toast("✅ Arxivga o'tkazildi");archG(gid,g,groups2);}
+            catch(e){toast('❌ '+e.message);}
+          });
+        });
+      }
+
+      window.archRestore=async(sid,gid)=>{
+        try{await P('/students/'+sid+'/groups',{groupId:gid});toast('✅ Guruhga qaytarildi');load();}
+        catch(e){toast('❌ '+e.message);}
+      };
+
+    }catch(e){el.innerHTML=emHtml('Xatolik: '+e.message);}
+  }
+  load();
+}
+
 
 // INIT
 async function init(){
