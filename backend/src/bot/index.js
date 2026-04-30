@@ -144,8 +144,8 @@ module.exports = function setupBot(bot) {
           ? `${process.env.MINI_APP_URL}/teacher.html`
           : `${process.env.MINI_APP_URL}/reception.html`;
         await ctx.reply('Tizimga kirish muvaffaqiyatli!', { reply_markup: { remove_keyboard: true } });
-        return ctx.reply(`Xush kelibsiz, ${existingStaff.firstName}!`, {
-          reply_markup: { inline_keyboard: [[{ text: 'CRM ni ochish', web_app: { url } }]] }
+        return ctx.reply(`Ta'lim Plus botiga xush kelibsiz, ${existingStaff.firstName}!\n\nCRM tizimidan foydalanish uchun quyidagi tugmani bosing.`, {
+          reply_markup: { inline_keyboard: [[{ text: '📊 CRM ni ochish', web_app: { url } }]] }
         });
       }
 
