@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const prisma = require('../../db');
 const roleCheck = require('../middleware/roleCheck');
-const { sendPaymentReport, sendExpenseReport, sendConversionReport, sendAttendanceReport, getBalance, sendPaymentNotifToStudent, sendAttendanceNotifToStudents, sendDebtNotif } = require('../../services/notificationService');
+const { sendPaymentReport, sendExpenseReport, sendConversionReport, sendAttendanceReport, getBalance, sendPaymentNotifToStudent, sendAttendanceNotifToStudents, sendDebtNotif, sendAttendanceNotifToStudent } = require('../../services/notificationService');
 const moment = require('moment-timezone');
 const TZ = 'Asia/Tashkent';
 
@@ -31,11 +31,8 @@ attRouter.get('/sheet/:scheduleId', roleCheck('teacher'), async (req, res) => {
     isPresent: gs.attendances[0]?.isPresent ?? null
   }));
 
-  // allStudents - barcha o'quvchilar (2-marta davomat uchun)
-  const allStudents = students;
-  // students - 2-marta olganda faqat kelmagan (eski client uchun)
-  const filteredStudents = alreadyTaken ? students.filter(s => s.isPresent !== true) : students;
-  res.json({ students: filteredStudents, allStudents, alreadyTaken });
+  if (alreadyTaken) students = students.filter(s => s.isPresent !== true);
+  res.json({ students, alreadyTaken });
 });
 
 attRouter.post('/save/:scheduleId', roleCheck('teacher'), async (req, res) => {
@@ -53,9 +50,17 @@ attRouter.post('/save/:scheduleId', roleCheck('teacher'), async (req, res) => {
       where: { groupId: schedule.groupId, status: 'active' }
     });
 
+    // Avvalgi davomat holatini saqlab olamiz (xabar o'zgarishlarni aniqlash uchun)
+    const prevAttendances = await prisma.attendance.findMany({
+      where: { scheduleId },
+      select: { groupStudentId: true, isPresent: true }
+    });
+    const prevMap = new Map(prevAttendances.map(a => [a.groupStudentId, a.isPresent]));
+    const isFirstTime = prevAttendances.length === 0;
+
     const ops = groupStudents.map(gs => prisma.attendance.upsert({
       where: { scheduleId_groupStudentId: { scheduleId, groupStudentId: gs.id } },
-      update: { isPresent: presentSet.has(gs.id) ? true : undefined },
+      update: { isPresent: presentSet.has(gs.id) },
       create: { scheduleId, groupStudentId: gs.id, teacherId: req.user.id || null, isPresent: presentSet.has(gs.id) }
     }));
     await prisma.$transaction(ops);
@@ -65,6 +70,22 @@ attRouter.post('/save/:scheduleId', roleCheck('teacher'), async (req, res) => {
       : 'Noma\'lum';
 
     await sendAttendanceReport({ groupId: schedule.groupId, scheduleId, teacherName, lessonDate: schedule.lessonDate });
+
+    // O'quvchilarga xabar:
+    // 1-marta: hamma uchun
+    // 2-marta: faqat holati o'zgarganlar uchun
+    for (const gs of groupStudents) {
+      const wasPresent = prevMap.get(gs.id);
+      const isNowPresent = presentSet.has(gs.id);
+      const changed = !isFirstTime && wasPresent !== isNowPresent;
+      if (isFirstTime || changed) {
+        // Xabar yuboramiz
+        setImmediate(() => {
+          sendAttendanceNotifToStudent({ groupStudentId: gs.id, scheduleId, isPresent: isNowPresent }).catch(() => {});
+        });
+      }
+    }
+
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -134,6 +155,11 @@ payRouter.post('/', roleCheck('admin', 'receptionist'), async (req, res) => {
 
     await sendPaymentReport({ studentId: parseInt(studentId), groupId: parseInt(groupId), monthYear, amount: BigInt(amount), paymentType, note });
 
+    // O'quvchiga to'lov xabari
+    setImmediate(() => {
+      sendPaymentNotifToStudent({ studentId: parseInt(studentId), groupId: parseInt(groupId), monthYear, amount: BigInt(amount), paymentType }).catch(() => {});
+    });
+
     res.json({ ...payment, amount: payment.amount.toString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -163,6 +189,9 @@ payRouter.post('/batch', roleCheck('admin', 'receptionist'), async (req, res) =>
       });
       payments.push(p);
       await sendPaymentReport({ studentId: parseInt(studentId), groupId: parseInt(groupId), monthYear, amount: BigInt(perGroup), paymentType, note });
+      setImmediate(() => {
+        sendPaymentNotifToStudent({ studentId: parseInt(studentId), groupId: parseInt(groupId), monthYear, amount: BigInt(perGroup), paymentType }).catch(() => {});
+      });
     }
 
     res.json(payments.map(p => ({ ...p, amount: p.amount.toString() })));
