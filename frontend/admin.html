@@ -721,8 +721,12 @@ async function rDebtors(el){
     const btn=document.getElementById('dnBtn');
     if(btn){btn.disabled=true;btn.textContent='Yuborilmoqda...';}
     try{
-      await P('/debtors/notify',{groupId:parseInt(gid),monthYear:month,maxAmount:maxAmt||null});
-      closeModal();toast('\u2705 Xabar yuborildi');
+      const r=await P('/debtors/notify',{groupId:parseInt(gid),monthYear:month,maxAmount:maxAmt||null});
+      closeModal();
+      const info=r.noTelegram>0
+        ?('\u2705 '+r.sent+' ta yuborildi, '+r.noTelegram+' ta botga ulanmagan')
+        :('\u2705 '+r.sent+' ta xabar yuborildi');
+      toast(info,3500);
     }catch(e){
       toast('\u274c '+e.message);
       if(btn){btn.disabled=false;btn.textContent='Xabarni yuborish';}
