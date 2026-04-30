@@ -4,17 +4,47 @@ const roleCheck = require('../middleware/roleCheck');
 
 router.get('/', roleCheck('admin', 'receptionist'), async (req, res) => {
   const { search } = req.query;
-  const where = { status: 'waiting' };
-  if (search) where.OR = [
+
+  // waiting + qisman biriktirilganlar (enrolled lekin ba'zi fanlar guruhsiz)
+  const baseWhere = {};
+  if (search) baseWhere.OR = [
     { firstName: { contains: search, mode: 'insensitive' } },
     { lastName: { contains: search, mode: 'insensitive' } }
   ];
-  const applicants = await prisma.applicant.findMany({
-    where,
+
+  // waiting statusdagilar
+  const waiting = await prisma.applicant.findMany({
+    where: { ...baseWhere, status: 'waiting' },
     include: { applicantSubjects: { include: { subject: true } } },
     orderBy: { createdAt: 'desc' }
   });
-  res.json(applicants);
+
+  // enrolled lekin barcha fanlarga biriktirilmagan (qisman)
+  const enrolled = await prisma.applicant.findMany({
+    where: { ...baseWhere, status: 'enrolled' },
+    include: {
+      applicantSubjects: { include: { subject: true } },
+      student: {
+        include: {
+          groupStudents: {
+            where: { status: 'active' },
+            include: { group: { include: { subject: true } } }
+          }
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Qisman biriktirilganlarni topish
+  const partial = enrolled.filter(a => {
+    if (!a.student) return false;
+    const enrolledSubjectIds = new Set(a.student.groupStudents.map(gs => gs.group.subjectId));
+    const requiredSubjectIds = a.applicantSubjects.map(s => s.subjectId);
+    return requiredSubjectIds.some(sid => !enrolledSubjectIds.has(sid));
+  });
+
+  res.json([...waiting, ...partial]);
 });
 
 router.post('/', async (req, res) => {
@@ -52,8 +82,25 @@ router.post('/:id/enroll', roleCheck('admin', 'receptionist'), async (req, res) 
       });
     }
 
+    // Barcha fanlarga biriktirilganmi tekshiramiz
     if (groupAssignments.length > 0) {
-      await prisma.applicant.update({ where: { id: applicantId }, data: { status: 'enrolled' } });
+      const applicant = await prisma.applicant.findUnique({
+        where: { id: applicantId },
+        include: { applicantSubjects: true }
+      });
+      const allGroupStudents = await prisma.groupStudent.findMany({
+        where: { studentId: student.id, status: 'active' },
+        include: { group: true }
+      });
+      const enrolledSubjectIds = new Set(allGroupStudents.map(gs => gs.group.subjectId));
+      const allEnrolled = applicant.applicantSubjects.every(as => enrolledSubjectIds.has(as.subjectId));
+
+      if (allEnrolled) {
+        await prisma.applicant.update({ where: { id: applicantId }, data: { status: 'enrolled' } });
+      } else {
+        // Qisman biriktirildi - enrolled deb belgilaymiz lekin ro'yxatdan o'chirmaydi
+        await prisma.applicant.update({ where: { id: applicantId }, data: { status: 'enrolled' } });
+      }
     }
 
     res.json({ success: true, studentId: student.id });
