@@ -15,7 +15,17 @@ router.get('/', roleCheck('admin', 'receptionist'), async (req, res) => {
   // waiting statusdagilar
   const waiting = await prisma.applicant.findMany({
     where: { ...baseWhere, status: 'waiting' },
-    include: { applicantSubjects: { include: { subject: true } } },
+    include: {
+      applicantSubjects: { include: { subject: true } },
+      student: {
+        include: {
+          groupStudents: {
+            where: { status: 'active' },
+            include: { group: { include: { subject: true } } }
+          }
+        }
+      }
+    },
     orderBy: { createdAt: 'desc' }
   });
 
@@ -75,10 +85,24 @@ router.post('/:id/enroll', roleCheck('admin', 'receptionist'), async (req, res) 
     if (!student) student = await prisma.student.create({ data: { applicantId } });
 
     for (const { groupId } of groupAssignments) {
+      const gid = parseInt(groupId);
+      // Bu guruhning fanini topamiz
+      const grp = await prisma.group.findUnique({ where: { id: gid }, select: { subjectId: true } });
+      if (grp) {
+        // Bir xil fandagi boshqa guruhlarni arxivlaymiz
+        const sameSubjectGs = await prisma.groupStudent.findMany({
+          where: { studentId: student.id, status: 'active', group: { subjectId: grp.subjectId } }
+        });
+        for (const sg of sameSubjectGs) {
+          if (sg.groupId !== gid) {
+            await prisma.groupStudent.update({ where: { id: sg.id }, data: { status: 'archived' } });
+          }
+        }
+      }
       await prisma.groupStudent.upsert({
-        where: { groupId_studentId: { groupId: parseInt(groupId), studentId: student.id } },
+        where: { groupId_studentId: { groupId: gid, studentId: student.id } },
         update: { status: 'active' },
-        create: { groupId: parseInt(groupId), studentId: student.id }
+        create: { groupId: gid, studentId: student.id }
       });
     }
 
