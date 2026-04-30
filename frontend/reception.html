@@ -202,9 +202,23 @@ async function rAppList(el){
   window.alDel=async id=>{try{await D(`/applicants/${id}`);closeModal();toast("O'chirildi");load();}catch(e){toast('❌ '+e.message);}};
   window.alEnroll=async a=>{
     if(typeof a==='string')a=JSON.parse(a);
-    const subjItems=(a.applicantSubjects||[]);
-    if(!subjItems.length)return toast('Fan biriktirilmagan');
-    // Har bir fan uchun alohida tanlov modal
+    const allSubjItems=(a.applicantSubjects||[]);
+    if(!allSubjItems.length)return toast('Fan biriktirilmagan');
+
+    // Qisman biriktirilgan bo'lsa - faqat biriktirilmagan fanlarni ko'rsat
+    let subjItems=allSubjItems;
+    if(a.status==='enrolled'&&a.student){
+      const enrolledSubjIds=new Set((a.student.groupStudents||[])
+        .filter(gs=>gs.status==='active')
+        .map(gs=>gs.group?.subjectId||gs.group?.subject?.id));
+      const remaining=allSubjItems.filter(si=>{
+        const sid=si.subjectId||si.subject?.id;
+        return !enrolledSubjIds.has(sid);
+      });
+      if(remaining.length>0) subjItems=remaining;
+      // Agar hamma biriktirilgan bo'lsa - hammasi ko'rinsin
+    }
+
     await showEnrollPicker(a, subjItems);
   };
 
