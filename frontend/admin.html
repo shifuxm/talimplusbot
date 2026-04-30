@@ -696,113 +696,88 @@ async function rSettings(el){
 async function rDebtors(el){
   const months=sixMonths();let sm=nowMonth();let ma='';
   function draw(){
-    el.innerHTML=`
-      <div class="st">OY TANLANG</div>
-      <div class="mp">${months.map(m=>`<div class="mpb${m===sm?' on':''}" onclick="dm('${m}')">${mLabel(m)}</div>`).join('')}</div>
-      <div class="ig">
-        <label class="il">Maksimal summa (bo'sh = 0 to'laganlar)</label>
-        <input id="dma" type="number" class="inp" placeholder="200000" value="${ma}" oninput="dmi(this.value)"/>
-        ${ma?`<div style="font-size:12px;color:#07568A;margin-top:4px">${fmt(ma)}dan kam to'laganlar</div>`:''}
-      </div>
-      <button class="btn bp" style="margin-bottom:16px" onclick="dSearch()">Ko'rish</button>
-      <div id="dr"></div>`;
+    const maFmt=ma?('<div style="font-size:12px;color:#07568A;margin-top:4px">'+fmt(ma)+'dan kam</div>'):'';
+    el.innerHTML='<div class="st">OY TANLANG</div>'
+      +'<div class="mp">'+months.map(m=>'<div class="mpb'+(m===sm?' on':'')+'" onclick="dm(\'' +m+ '\'">'+mLabel(m)+'</div>').join('')+'</div>'
+      +'<div class="ig"><label class="il">Maksimal summa (bo\u02bcsh = 0 to\u02bclaganlar)</label>'
+      +'<input id="dma" type="number" class="inp" placeholder="200000" value="'+ma+'" oninput="dmi(this.value)"/>'
+      +maFmt+'</div>'
+      +'<button class="btn bp" style="margin-bottom:16px" onclick="dSearch()">Ko\u02bcrish</button>'
+      +'<div id="dr"></div>';
 
-    window.dm = m => { sm=m; draw(); };
-    window.dmi = v => { ma=v; };
+    window.dm=m=>{sm=m;draw();};
+    window.dmi=v=>{ma=v;};
 
-    window.dSearch = async () => {
-      const res = document.getElementById('dr');
-      res.innerHTML = ldHtml();
-      try {
-        const data = await G(`/debtors?monthYear=${sm}${ma ? `&maxAmount=${ma}` : ''}`);
+    window.dSearch=async()=>{
+      const res=document.getElementById('dr');
+      res.innerHTML=ldHtml();
+      try{
+        const url='/debtors?monthYear='+sm+(ma?('&maxAmount='+ma):'');
+        const data=await G(url);
         if(!data.length){
-          res.innerHTML = `<div style="text-align:center;padding:32px;color:#15803d"><div style="font-size:48px;margin-bottom:12px">✅</div>Qarzdorlar yo'q!</div>`;
+          res.innerHTML='<div style="text-align:center;padding:32px;color:#15803d"><div style="font-size:48px;margin-bottom:12px">\u2705</div>Qarzdorlar yo\u02bclq!</div>';
           return;
         }
-        let html = '';
-        data.forEach(g => {
-          html += `<div style="margin-bottom:16px">
-            <div class="st">${g.subjectName}</div>
-            <div class="card" style="padding:0;overflow:hidden">
-              ${g.students.map(s => `
-                <div class="li" style="cursor:default">
-                  <div style="flex:1">
-                    <div style="font-size:15px;font-weight:500">${s.firstName} ${s.lastName}</div>
-                    <div style="font-size:12px;color:#9ca3af">${s.phoneSelf||s.phoneFather||'—'}</div>
-                  </div>
-                  <div style="text-align:right">
-                    <div style="color:#ef4444;font-weight:700;font-size:14px">${fmt(s.paidAmount)}</div>
-                    ${s.remainingAmount ? `<div style="font-size:11px;color:#9ca3af">Qoldi: ${fmt(s.remainingAmount)}</div>` : ''}
-                  </div>
-                </div>`).join('')}
-            </div>
-            <button class="btn bs" style="margin-top:8px;font-size:13px" onclick="dNotify(${g.groupId})">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Guruhga xabar yuborish
-            </button>
-          </div>`;
+        window._dd=data;window._dsm=sm;window._dma=ma;
+        let html='';
+        data.forEach(g=>{
+          const students=g.students.map(s=>{
+            const remain=s.remainingAmount?('<div style="font-size:11px;color:#9ca3af">Qoldi: '+fmt(s.remainingAmount)+'</div>'):'';
+            return '<div class="li" style="cursor:default">'
+              +'<div style="flex:1">'
+              +'<div style="font-size:15px;font-weight:500">'+s.firstName+' '+s.lastName+'</div>'
+              +'<div style="font-size:12px;color:#9ca3af">'+(s.phoneSelf||s.phoneFather||'\u2014')+'</div>'
+              +'</div>'
+              +'<div style="text-align:right">'
+              +'<div style="color:#ef4444;font-weight:700;font-size:14px">'+fmt(s.paidAmount)+'</div>'
+              +remain
+              +'</div></div>';
+          }).join('');
+          html+='<div style="margin-bottom:16px">'
+            +'<div class="st">'+g.subjectName+'</div>'
+            +'<div class="card" style="padding:0;overflow:hidden">'+students+'</div>'
+            +'<button class="btn bs" style="margin-top:8px;font-size:13px" onclick="dNotify('+g.groupId+')">'
+            +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>'
+            +' Xabar yuborish</button></div>';
         });
-        res.innerHTML = html;
-
-        // dNotify funksiyasi - xabar yuborish
-        window._debtData = data;
-        window._debtSm = sm;
-        window._debtMa = ma;
-
-      } catch(e) { res.innerHTML = emHtml('Xatolik: ' + e.message); }
+        res.innerHTML=html;
+      }catch(e){res.innerHTML=emHtml('Xatolik: '+e.message);}
     };
 
-    window.dNotify = async (groupId) => {
-      const data = window._debtData || [];
-      const sm2 = window._debtSm || sm;
-      const ma2 = window._debtMa || ma;
-      const group = data.find(g => g.groupId == groupId);
-      if(!group || !group.students.length) return toast("Qarzdorlar yo'q");
-
-      // Oy nomini formatlash
-      const monthLabel = mLabel(sm2);
-
-      // Xabar preview
-      let lines = group.students.map(s => {
-        const phone = s.phoneSelf || s.phoneFather || '';
-        let line = `${s.firstName} ${s.lastName} — ${fmt(s.paidAmount)}`;
-        if(phone) line += ` (${phone})`;
-        return line;
-      }).join('
-');
-
-      const previewMsg = `⚠️ Qarzdorlar ro'yxati
-📚 Fan: ${group.subjectName}
-📅 Oy: ${monthLabel}
-━━━━━━━━━━━━
-${lines}
-
-Jami: ${group.students.length} ta o'quvchi`;
-
-      openModal('Xabar yuborish', `
-        <div style="font-size:13px;color:#6b7280;margin-bottom:12px">Quyidagi xabar kanalga yuboriladi:</div>
-        <div style="background:#f3f4f6;border-radius:12px;padding:14px;font-size:13px;white-space:pre-line;margin-bottom:16px;line-height:1.6;max-height:300px;overflow-y:auto">${previewMsg}</div>
-        <button class="btn bp" id="sendDebtBtn" onclick="dConfirmSend(${groupId},'${sm2}',${ma2?parseInt(ma2):0})">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Xabarni yuborish
-        </button>
-      `);
+    window.dNotify=async groupId=>{
+      const data=window._dd||[];
+      const sm2=window._dsm||sm;
+      const ma2=window._dma||ma;
+      const group=data.find(g=>g.groupId==groupId);
+      if(!group||!group.students.length)return toast("Qarzdorlar yo'q");
+      const monthLbl=mLabel(sm2);
+      const lines=group.students.map(s=>{
+        const ph=s.phoneSelf||s.phoneFather||'';
+        return s.firstName+' '+s.lastName+' \u2014 '+fmt(s.paidAmount)+(ph?' ('+ph+')':'');
+      });
+      const previewArr=[
+        "\u26a0 Qarzdorlar ro'yxati",
+        "\uD83D\uDCDA Fan: "+group.subjectName,
+        "\uD83D\uDCC5 Oy: "+monthLbl,
+        "\u2015\u2015\u2015\u2015\u2015\u2015"
+      ].concat(lines).concat(["","Jami: "+group.students.length+" ta o'quvchi"]);
+      const preview=previewArr.join('\n');
+      openModal('Xabar yuborish',
+        '<div style="font-size:13px;color:#6b7280;margin-bottom:12px">Kanalga yuboriladigan xabar:</div>'
+        +'<div style="background:#f3f4f6;border-radius:12px;padding:14px;font-size:13px;white-space:pre-line;margin-bottom:16px;line-height:1.6;max-height:280px;overflow-y:auto">'+preview+'</div>'
+        +'<button class="btn bp" id="dnBtn" onclick="dSend('+groupId+',\''+sm2+'\','+parseInt(ma2||0)+')">Xabarni yuborish</button>'
+      );
     };
 
-    window.dConfirmSend = async (groupId, month, maxAmt) => {
-      const btn = document.getElementById('sendDebtBtn');
-      if(btn) { btn.disabled = true; btn.textContent = 'Yuborilmoqda...'; }
-      try {
-        await P('/debtors/notify', {
-          groupId: parseInt(groupId),
-          monthYear: month,
-          maxAmount: maxAmt || null
-        });
-        closeModal();
-        toast('✅ Xabar yuborildi');
-      } catch(e) {
-        toast('❌ ' + e.message);
-        if(btn) { btn.disabled = false; btn.innerHTML = 'Xabarni yuborish'; }
+    window.dSend=async(gid,month,maxAmt)=>{
+      const btn=document.getElementById('dnBtn');
+      if(btn){btn.disabled=true;btn.textContent='Yuborilmoqda...';}
+      try{
+        await P('/debtors/notify',{groupId:parseInt(gid),monthYear:month,maxAmount:maxAmt||null});
+        closeModal();toast('\u2705 Xabar yuborildi');
+      }catch(e){
+        toast('\u274c '+e.message);
+        if(btn){btn.disabled=false;btn.textContent='Xabarni yuborish';}
       }
     };
   }
