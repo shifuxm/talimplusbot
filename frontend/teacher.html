@@ -159,42 +159,67 @@ async function rAttendance(el){
   window.attG=async gid=>{
     const{hasLesson,schedule}=await G(`/schedule/today/${gid}`);
     if(!hasLesson){
-      el.innerHTML=`<button class="btn bs" style="margin-bottom:16px" onclick="rAttendance(document.getElementById('content'))">← Orqaga</button><div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📅</div><div>Bugun dars belgilanmagan</div></div>`;
+      el.innerHTML='<button class="btn bs" style="margin-bottom:16px" id="attBack">← Orqaga</button>'
+        +'<div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📅</div><div>Bugun dars belgilanmagan</div></div>';
+      document.getElementById('attBack')?.addEventListener('click',()=>rAttendance(document.getElementById('content')));
       return;
     }
-    const{students,alreadyTaken}=await G(`/attendance/sheet/${schedule.id}`);
-    let pIds=new Set(alreadyTaken?students.filter(s=>s.isPresent).map(s=>s.groupStudentId):students.map(s=>s.groupStudentId));
+    const res=await G(`/attendance/sheet/${schedule.id}`);
+    const allSts=res.allStudents||res.students;
+    const alreadyTaken=res.alreadyTaken;
+    let pIds=new Set(
+      alreadyTaken
+        ? allSts.filter(s=>s.isPresent).map(s=>s.groupStudentId)
+        : allSts.map(s=>s.groupStudentId)
+    );
 
     function drawSheet(){
-      el.innerHTML=`
-        <button class="btn bs" style="width:auto;margin-bottom:12px" onclick="rAttendance(document.getElementById('content'))">← Orqaga</button>
-        ${alreadyTaken&&students.length>0?`<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e">⚠️ Davomat avval olingan. Kelmagan o'quvchilarni belgilang.</div>`:''}
-        ${alreadyTaken&&!students.length?`<div style="text-align:center;padding:40px;color:#15803d"><div style="font-size:48px;margin-bottom:12px">✅</div><div>Barcha belgilangan</div></div>`:''}
-        ${students.length>0?`
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span class="st" style="margin:0">${alreadyTaken?'KELMAGAN O\'QUVCHILAR':'BARCHA O\'QUVCHILAR'}</span>
-            <span id="attCnt" style="font-size:13px;color:#07568A;font-weight:700">✅ ${pIds.size}/${students.length}</span>
-          </div>
-          <div class="card" style="padding:8px 16px;margin-bottom:12px">
-            ${students.map(s=>`<div class="chkr" onclick="attTg(${s.groupStudentId})">
-              <div class="chk${pIds.has(s.groupStudentId)?' on':''}" id="att_${s.groupStudentId}">${pIds.has(s.groupStudentId)?'✓':''}</div>
-              <span style="font-size:15px;font-weight:500">${s.firstName} ${s.lastName}</span>
-            </div>`).join('')}
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <button class="btn bs" style="flex:1;font-size:13px" onclick="attAll()">Hammasi keldi</button>
-            <button class="btn bs" style="flex:1;font-size:13px" onclick="attClr()">Tozalash</button>
-          </div>
-          <button class="btn bp" onclick="attSave(${schedule.id})">✓ Davomatni saqlash</button>`:''}`;
-      window.attTg=id=>{if(pIds.has(id))pIds.delete(id);else pIds.add(id);const cb=document.getElementById(`att_${id}`);cb.classList.toggle('on',pIds.has(id));cb.textContent=pIds.has(id)?'✓':'';document.getElementById('attCnt').textContent=`✅ ${pIds.size}/${students.length}`;};
-      window.attAll=()=>{pIds=new Set(students.map(s=>s.groupStudentId));drawSheet();};
-      window.attClr=()=>{pIds=new Set();drawSheet();};
-      window.attSave=async sid=>{try{await P(`/attendance/save/${sid}`,{presentIds:Array.from(pIds)});toast('✅ Davomat saqlandi');rAttendance(document.getElementById('content'));}catch(e){toast('❌ '+e.message);}};
+      el.innerHTML='<button class="btn bs" style="width:auto;margin-bottom:12px" id="attBack">← Orqaga</button>'
+        +(alreadyTaken?'<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e">⚠️ Davomat avval olingan. O\u02bczgartirib saqlashingizkin.</div>':'')
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<span class="st" style="margin:0">BARCHA O\u02bcQUVCHILAR</span>'
+        +'<span id="attCnt" style="font-size:13px;color:#07568A;font-weight:700">✅ '+pIds.size+'/'+allSts.length+'</span>'
+        +'</div>'
+        +'<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">'
+        +allSts.map(s=>'<div class="li" id="attrow'+s.groupStudentId+'">'
+          +'<span style="font-size:15px;font-weight:500;flex:1">'+s.firstName+' '+s.lastName+'</span>'
+          +'<div class="chk'+(pIds.has(s.groupStudentId)?' on':'')+'" id="att_'+s.groupStudentId+'">'+(pIds.has(s.groupStudentId)?'✓':'')+'</div>'
+          +'</div>').join('')
+        +'</div>'
+        +'<div style="display:flex;gap:8px;margin-bottom:12px">'
+        +'<button class="btn bs" style="flex:1;font-size:13px" id="attAllBtn">Hammasi keldi</button>'
+        +'<button class="btn bs" style="flex:1;font-size:13px" id="attClrBtn">Tozalash</button>'
+        +'</div>'
+        +'<button class="btn bp" id="attSaveBtn">✓ Davomatni saqlash</button>';
+
+      document.getElementById('attBack')?.addEventListener('click',()=>rAttendance(document.getElementById('content')));
+
+      function updCnt(){ const c=document.getElementById('attCnt');if(c)c.textContent='✅ '+pIds.size+'/'+allSts.length; }
+      function updRow(gsid){const cb=document.getElementById('att_'+gsid);if(cb){cb.classList.toggle('on',pIds.has(gsid));cb.textContent=pIds.has(gsid)?'✓':'';}}
+
+      allSts.forEach(s=>{
+        document.getElementById('attrow'+s.groupStudentId)?.addEventListener('click',()=>{
+          if(pIds.has(s.groupStudentId))pIds.delete(s.groupStudentId);else pIds.add(s.groupStudentId);
+          updRow(s.groupStudentId);updCnt();
+        });
+      });
+      document.getElementById('attAllBtn')?.addEventListener('click',()=>{
+        pIds=new Set(allSts.map(s=>s.groupStudentId));allSts.forEach(s=>updRow(s.groupStudentId));updCnt();
+      });
+      document.getElementById('attClrBtn')?.addEventListener('click',()=>{
+        pIds=new Set();allSts.forEach(s=>updRow(s.groupStudentId));updCnt();
+      });
+      document.getElementById('attSaveBtn')?.addEventListener('click',async()=>{
+        try{
+          await P(`/attendance/save/${schedule.id}`,{presentIds:Array.from(pIds)});
+          toast('✅ Davomat saqlandi');
+          rAttendance(document.getElementById('content'));
+        }catch(e){toast('❌ '+e.message);}
+      });
     }
     drawSheet();
   };
 }
-
 // MY GROUPS
 async function rMyGroups(el){
   const groups=await G('/groups/my');
@@ -216,17 +241,40 @@ async function rMyGroups(el){
       <div style="font-size:13px;color:#6b7280;margin-bottom:16px">${g?.subject?.name} — ${sts.length} o'quvchi</div>
       <div class="card" style="padding:0;overflow:hidden">
         ${sts.length===0?`<div style="padding:20px;text-align:center;color:#9ca3af">O'quvchilar yo'q</div>`:
-        sts.map((s,i)=>`<div class="li" style="cursor:default">
+        sts.map((s,i)=>`<div class="li" id="mgst${s.id}">
           <div style="width:32px;height:32px;border-radius:50%;background:#dbeafe;color:#07568A;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-right:12px">${i+1}</div>
-          <div><div style="font-weight:500;font-size:15px">${s.firstName} ${s.lastName}</div>
-          <div style="font-size:12px;margin-top:2px">
-            ${s.phoneSelf?`<a href="tel:${s.phoneSelf}" style="color:#07568A;text-decoration:none;font-weight:500">${s.phoneSelf}</a>`:''}
-            ${s.phoneSelf&&s.phoneFather?' · ':''}
-            ${s.phoneFather?`<a href="tel:${s.phoneFather}" style="color:#6b7280;text-decoration:none">${s.phoneFather}</a>`:''}
-            ${!s.phoneSelf&&!s.phoneFather?`<span style="color:#9ca3af">—</span>`:''}
-          </div></div>
+          <div style="flex:1">
+            <div style="font-weight:500;font-size:15px">${s.firstName} ${s.lastName}</div>
+            <div style="font-size:12px;color:#9ca3af;margin-top:2px">
+              ${s.phoneSelf?`<a href="tel:${s.phoneSelf}" style="color:#07568A;text-decoration:none;font-weight:500">${s.phoneSelf}</a>`:''}
+              ${s.phoneSelf&&s.phoneFather?' · ':''}
+              ${s.phoneFather?`<a href="tel:${s.phoneFather}" style="color:#6b7280;text-decoration:none">${s.phoneFather}</a>`:''}
+              ${!s.phoneSelf&&!s.phoneFather?`<span style="color:#9ca3af">—</span>`:''}
+            </div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
         </div>`).join('')}
       </div>`;
+
+    sts.forEach(s=>{
+      document.getElementById('mgst'+s.id)?.addEventListener('click',()=>mgOpenStudent(s,g));
+    });
+  };
+
+  window.mgOpenStudent=(s,g)=>{
+    const edu={school:'Maktab',college:'Kollej',adult:'Yuqori yosh'};
+    const eduStr=edu[s.educationType]||(s.educationType||'');
+    openModal(`${s.firstName} ${s.lastName}`,`
+      <div style="margin-bottom:16px">
+        ${eduStr?`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">O'qish joyi</span><b>${eduStr}${s.grade?' '+s.grade+'-sinf':''}</b></div>`:''}
+        ${s.phoneSelf?`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">O'zi</span><a href="tel:${s.phoneSelf}" style="font-weight:700;color:#07568A;text-decoration:none;font-size:15px">${s.phoneSelf}</a></div>`:''}
+        ${s.phoneFather?`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">Otasi</span><a href="tel:${s.phoneFather}" style="font-weight:700;color:#6b7280;text-decoration:none;font-size:15px">${s.phoneFather}</a></div>`:''}
+        ${s.phoneMother?`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">Onasi</span><a href="tel:${s.phoneMother}" style="font-weight:700;color:#6b7280;text-decoration:none;font-size:15px">${s.phoneMother}</a></div>`:''}
+        ${!s.phoneSelf&&!s.phoneFather&&!s.phoneMother?`<div style="padding:10px 0;color:#9ca3af;font-size:14px">Telefon yo'q</div>`:''}
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">GURUH</div>
+      <div style="padding:10px 0;font-size:14px"><b>${g?.name}</b> — ${g?.subject?.name}</div>
+    `);
   };
 }
 
