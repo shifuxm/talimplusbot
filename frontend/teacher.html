@@ -175,9 +175,9 @@ async function rAttendance(el){
 
     function drawSheet(){
       el.innerHTML='<button class="btn bs" style="width:auto;margin-bottom:12px" id="attBack">← Orqaga</button>'
-        +(alreadyTaken?'<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e">⚠️ Davomat avval olingan. O\u02bczgartirib saqlashingizkin.</div>':'')
+        +(alreadyTaken?'<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e">⚠️ Davomat avval olingan. Oʼzgartirib saqlashingiz mumkin.</div>':'')
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-        +'<span class="st" style="margin:0">BARCHA O\u02bcQUVCHILAR</span>'
+        +'<span class="st" style="margin:0">BARCHA OʼQUVCHILAR</span>'
         +'<span id="attCnt" style="font-size:13px;color:#07568A;font-weight:700">✅ '+pIds.size+'/'+allSts.length+'</span>'
         +'</div>'
         +'<div class="card" style="padding:0;overflow:hidden;margin-bottom:12px">'
@@ -193,10 +193,8 @@ async function rAttendance(el){
         +'<button class="btn bp" id="attSaveBtn">✓ Davomatni saqlash</button>';
 
       document.getElementById('attBack')?.addEventListener('click',()=>rAttendance(document.getElementById('content')));
-
       function updCnt(){ const c=document.getElementById('attCnt');if(c)c.textContent='✅ '+pIds.size+'/'+allSts.length; }
       function updRow(gsid){const cb=document.getElementById('att_'+gsid);if(cb){cb.classList.toggle('on',pIds.has(gsid));cb.textContent=pIds.has(gsid)?'✓':'';}}
-
       allSts.forEach(s=>{
         document.getElementById('attrow'+s.groupStudentId)?.addEventListener('click',()=>{
           if(pIds.has(s.groupStudentId))pIds.delete(s.groupStudentId);else pIds.add(s.groupStudentId);
@@ -220,6 +218,7 @@ async function rAttendance(el){
     drawSheet();
   };
 }
+
 // MY GROUPS
 async function rMyGroups(el){
   const groups=await G('/groups/my');
@@ -264,17 +263,30 @@ async function rMyGroups(el){
   window.mgOpenStudent=(s,g)=>{
     const edu={school:'Maktab',college:'Kollej',adult:'Yuqori yosh'};
     const eduStr=edu[s.educationType]||(s.educationType||'');
-    openModal(`${s.firstName} ${s.lastName}`,`
-      <div style="margin-bottom:16px">
-        ${eduStr?`<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">O'qish joyi</span><b>${eduStr}${s.grade?' '+s.grade+'-sinf':''}</b></div>`:''}
-        ${s.phoneSelf?`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">O'zi</span><a href="tel:${s.phoneSelf}" style="font-weight:700;color:#07568A;text-decoration:none;font-size:15px">${s.phoneSelf}</a></div>`:''}
-        ${s.phoneFather?`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">Otasi</span><a href="tel:${s.phoneFather}" style="font-weight:700;color:#6b7280;text-decoration:none;font-size:15px">${s.phoneFather}</a></div>`:''}
-        ${s.phoneMother?`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">Onasi</span><a href="tel:${s.phoneMother}" style="font-weight:700;color:#6b7280;text-decoration:none;font-size:15px">${s.phoneMother}</a></div>`:''}
-        ${!s.phoneSelf&&!s.phoneFather&&!s.phoneMother?`<div style="padding:10px 0;color:#9ca3af;font-size:14px">Telefon yo'q</div>`:''}
-      </div>
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">GURUH</div>
-      <div style="padding:10px 0;font-size:14px"><b>${g?.name}</b> — ${g?.subject?.name}</div>
-    `);
+    function phoneRow(label,phone){
+      if(!phone)return '';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f3f4f6">'
+        +'<span style="color:#6b7280;font-size:14px">'+label+'</span>'
+        +'<a href="tel:'+phone+'" style="display:flex;align-items:center;gap:10px;text-decoration:none">'
+        +'<span style="font-weight:600;color:#07568A;font-size:15px">'+phone+'</span>'
+        +'<div style="width:34px;height:34px;border-radius:50%;background:#07568A;display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+        +'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.84a16 16 0 0 0 6 6l.86-.86a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+        +'</div></a></div>';
+    }
+    const noPhone=!s.phoneSelf&&!s.phoneFather&&!s.phoneMother;
+    openModal(s.firstName+' '+s.lastName,
+      '<div style="margin-bottom:16px">'
+      +(eduStr?('<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f3f4f6">'
+        +'<span style="color:#6b7280;font-size:14px">Oʼqish joyi</span>'
+        +'<b>'+eduStr+(s.grade?' '+s.grade+'-sinf':'')+'</b></div>'):'')
+      +phoneRow("O'zi",s.phoneSelf)
+      +phoneRow('Otasi',s.phoneFather)
+      +phoneRow('Onasi',s.phoneMother)
+      +(noPhone?'<div style="padding:10px 0;color:#9ca3af;font-size:14px">Telefon yoʼlq</div>':'')
+      +'</div>'
+      +'<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">GURUH</div>'
+      +'<div style="padding:10px 0;font-size:14px"><b>'+(g?.name||'')+'</b> — '+(g?.subject?.name||'')+'</div>'
+    );
   };
 }
 
