@@ -67,7 +67,9 @@ function crmButton(staff) {
     : `${process.env.MINI_APP_URL}/reception.html`;
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: '📊 CRM ni ochish', web_app: { url } }]]
+      keyboard: [[{ text: '📊 CRM', web_app: { url } }]],
+      resize_keyboard: true,
+      persistent: true
     }
   };
 }
@@ -94,7 +96,7 @@ module.exports = function setupBot(bot) {
         });
         return ctx.reply(
           `Ta'lim Plus botiga xush kelibsiz!\n\nAdmin panelidan foydalanish uchun quyidagi tugmani bosing.`,
-          { reply_markup: { inline_keyboard: [[{ text: '🛡 Admin panelni ochish', web_app: { url: `${process.env.MINI_APP_URL}/admin.html` } }]] } }
+          { reply_markup: { keyboard: [[{ text: '🛡 Admin', web_app: { url: `${process.env.MINI_APP_URL}/admin.html` } }]], resize_keyboard: true, persistent: true } }
         );
       }
 
@@ -221,7 +223,7 @@ module.exports = function setupBot(bot) {
       const adminId = BigInt(process.env.ADMIN_TELEGRAM_ID || '0');
       if (telegramId === adminId) {
         return ctx.reply('Admin paneli:', {
-          reply_markup: { inline_keyboard: [[{ text: '🛡 Admin panelni ochish', web_app: { url: `${process.env.MINI_APP_URL}/admin.html` } }]] }
+          reply_markup: { keyboard: [[{ text: '🛡 Admin', web_app: { url: `${process.env.MINI_APP_URL}/admin.html` } }]], resize_keyboard: true, persistent: true }
         });
       }
       const user = await prisma.user.findUnique({ where: { telegramId } });
