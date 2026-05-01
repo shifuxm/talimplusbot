@@ -9,9 +9,14 @@ authRouter.get('/me', async (req, res) => {
     if (!telegramId) return res.status(401).json({ error: 'Telegram ID kerak' });
     if (telegramId === process.env.ADMIN_TELEGRAM_ID)
       return res.json({ id: 0, role: 'admin', firstName: 'Admin', lastName: '' });
-    const user = await prisma.user.findUnique({ where: { telegramId: BigInt(telegramId) } });
-    if (!user) return res.status(404).json({ error: 'Topilmadi' });
-    res.json({ ...user, telegramId: user.telegramId.toString() });
+
+    // 1. telegramId bilan topish (asosiy yo'l)
+    let user = await prisma.user.findUnique({ where: { telegramId: BigInt(telegramId) } });
+    if (user) return res.json({ ...user, telegramId: user.telegramId.toString() });
+
+    // 2. Topilmadi - hodim /start bosmasdan to'g'ridan CRM ga kirgan bo'lishi mumkin
+    // Bu holda 404 qaytaramiz - frontend "Botdan /start bosing" deydi
+    return res.status(404).json({ error: 'Foydalanuvchi topilmadi. Botdan /start bosing.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
