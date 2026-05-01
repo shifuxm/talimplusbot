@@ -1,10 +1,15 @@
 const router = require('express').Router();
 const prisma = require('../../db');
 const roleCheck = require('../middleware/roleCheck');
-const { Telegraf } = require('telegraf');
 
+// Bot singleton - index.js dan keladi
+let _bot = null;
 function getBot() {
-  return new Telegraf(process.env.BOT_TOKEN);
+  if (!_bot) {
+    const { Telegraf } = require('telegraf');
+    _bot = new Telegraf(process.env.BOT_TOKEN);
+  }
+  return _bot;
 }
 
 function fmt(n) {
