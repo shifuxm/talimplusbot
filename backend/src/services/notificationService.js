@@ -142,61 +142,7 @@ async function sendAttendanceReport({ groupId, scheduleId, teacherName, lessonDa
 
     await bot.telegram.sendMessage(channelId, text, { parse_mode: 'HTML' });
 
-    // Check monthly report
-    await checkMonthlyAttendance(groupId, group, scheduleId);
   } catch (e) { console.error('Attendance report xatolik:', e.message); }
-}
-
-async function checkMonthlyAttendance(groupId, group, currentScheduleId) {
-  try {
-    const channelId = await getChannelId('attendance_channel_id');
-    if (!channelId) return;
-
-    const today = moment().tz(TZ);
-    const futureThisMonth = await prisma.schedule.findMany({
-      where: {
-        groupId,
-        lessonDate: {
-          gt: today.toDate(),
-          lt: today.clone().endOf('month').toDate()
-        }
-      }
-    });
-
-    if (futureThisMonth.length > 0) return; // Oy oxiri emas
-
-    const monthStart = today.clone().startOf('month').toDate();
-    const monthEnd = today.clone().endOf('month').toDate();
-    const allSchedules = await prisma.schedule.findMany({
-      where: { groupId, lessonDate: { gte: monthStart, lte: monthEnd } }
-    });
-    const allStudents = await prisma.groupStudent.findMany({
-      where: { groupId, status: 'active' },
-      include: { student: { include: { applicant: true } } }
-    });
-
-    const totalLessons = allSchedules.length;
-    let text = `📊 <b>Oylik davomat hisoboti</b>\n━━━━━━━━━━━━━━━━\n`;
-    text += `📚 Guruh: <b>${group.name}</b> (${group.subject.name})\n`;
-    text += `📅 Oy: ${today.format('MMMM YYYY')}\n`;
-    text += `📝 Jami darslar: ${totalLessons} ta\n\n`;
-
-    for (const gs of allStudents) {
-      const name = `${gs.student.applicant.firstName} ${gs.student.applicant.lastName}`;
-      const presentCount = await prisma.attendance.count({
-        where: {
-          groupStudentId: gs.id,
-          scheduleId: { in: allSchedules.map(s => s.id) },
-          isPresent: true
-        }
-      });
-      const pct = totalLessons > 0 ? Math.round((presentCount / totalLessons) * 100) : 0;
-      text += `👤 ${name}\n   ✅ ${presentCount}/${totalLessons} (${pct}%) | ❌ ${totalLessons - presentCount} kun\n`;
-    }
-    text += `\n🕐 ${ts()}`;
-
-    await bot.telegram.sendMessage(channelId, text, { parse_mode: 'HTML' });
-  } catch (e) { console.error('Monthly attendance xatolik:', e.message); }
 }
 
 async function sendApplicantsReport() {
