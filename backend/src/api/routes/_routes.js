@@ -38,6 +38,47 @@ attRouter.get('/sheet/:scheduleId', roleCheck('teacher'), async (req, res) => {
   res.json({ students: filteredStudents, allStudents, alreadyTaken });
 });
 
+attRouter.get('/student/:studentId', roleCheck('admin', 'receptionist'), async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const { groupId, month } = req.query;
+    if (!groupId || !month) return res.status(400).json({ error: 'groupId va month kerak' });
+
+    const [y, m] = month.split('-').map(Number);
+    const monthStart = new Date(y, m - 1, 1);
+    const monthEnd = new Date(y, m, 0, 23, 59, 59);
+
+    // Shu guruh uchun shu oy darslarini topamiz
+    const schedules = await prisma.schedule.findMany({
+      where: { groupId: parseInt(groupId), lessonDate: { gte: monthStart, lte: monthEnd } },
+      orderBy: { lessonDate: 'asc' }
+    });
+
+    // O'quvchining groupStudentId si
+    const gs = await prisma.groupStudent.findFirst({
+      where: { studentId, groupId: parseInt(groupId) }
+    });
+    if (!gs) return res.json([]);
+
+    // Davomat ma'lumotlari
+    const attendances = await prisma.attendance.findMany({
+      where: { scheduleId: { in: schedules.map(s => s.id) }, groupStudentId: gs.id }
+    });
+    const attMap = {};
+    attendances.forEach(a => { attMap[a.scheduleId] = { isPresent: a.isPresent }; });
+
+    const result = schedules.map(sch => ({
+      scheduleId: sch.id,
+      lessonDate: sch.lessonDate,
+      startTime: sch.startTime,
+      endTime: sch.endTime,
+      isPresent: attMap[sch.id]?.isPresent ?? null
+    }));
+
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 attRouter.post('/save/:scheduleId', roleCheck('teacher'), async (req, res) => {
   try {
     const { presentIds } = req.body;
