@@ -78,12 +78,28 @@ router.get('/:id/profile', roleCheck('admin', 'receptionist'), async (req, res) 
         }
       }) : 0;
 
+      // Kelmagan kunlar
+      const absentAttendances = totalLessons > 0 ? await prisma.attendance.findMany({
+        where: {
+          scheduleId: { in: schedules.map(s => s.id) },
+          groupStudent: { studentId },
+          isPresent: false
+        },
+        include: { schedule: { select: { lessonDate: true } } }
+      }) : [];
+      const absentList = absentAttendances.map(a => {
+        const d = new Date(a.schedule.lessonDate);
+        return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0');
+      });
+
       attendanceStats.push({
         month: monthMoment.format('YYYY-MM'),
         monthLabel: monthMoment.format('MMMM YYYY'),
         total: totalLessons,
         present: presentCount,
-        percent: totalLessons > 0 ? Math.round((presentCount / totalLessons) * 100) : 0
+        absent: totalLessons - presentCount,
+        percent: totalLessons > 0 ? Math.round((presentCount / totalLessons) * 100) : 0,
+        absentList
       });
     }
 
