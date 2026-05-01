@@ -333,7 +333,11 @@ async function sendAttendanceNotifToStudent({ groupStudentId, scheduleId, isPres
     const a = gs.student.applicant;
     if (!a.telegramId) return;
 
-    const schedule = await prisma.schedule.findUnique({ where: { id: scheduleId } });
+    // Schedule ni groupStudent bilan birga olamiz (alohida query yo'q)
+    const schedule = await prisma.schedule.findUnique({
+      where: { id: scheduleId },
+      select: { lessonDate: true, startTime: true, endTime: true }
+    });
     if (!schedule) return;
 
     const dateStr = moment(schedule.lessonDate).tz(TZ).format('DD.MM.YYYY');
