@@ -199,7 +199,9 @@ async function init(){
     setupSidebar(user);
     nav('stats');
   }catch(e){
-    document.getElementById('loading').innerHTML=`<div style="text-align:center;padding:40px"><div style="font-size:64px;margin-bottom:16px">⛔</div><div style="font-size:16px;font-weight:600;color:#374151">Tizimga kirishda xatolik</div><div style="font-size:14px;color:#9ca3af;margin-top:8px">Botdan /start bosing</div></div>`;
+    const ld=document.getElementById('loading');
+    ld.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#f5f7fa;text-align:center;padding:40px';
+    ld.innerHTML=String.fromCharCode(128126)+'<br><br><b style="font-size:16px;color:#374151">Tizimga kirish uchun</b><br><span style="font-size:14px;color:#6b7280">Botda /start bosib, CRM ni oching</span>';
   }
 }
 
@@ -375,7 +377,7 @@ async function rStudents(el){
             </div>
           </div>
           <div style="height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden">
-            <div style="width:${a.percent}%;height:100%;background:${a.percent>=75?'#22c55e':a.percent>=50?'#f59e0b':'#ef4444'};border-radius:3px;transition:width .3s"></div>
+            <div style="width:${a.percent}%;height:100%;background:${a.percent>=75?'#22c55e':a.percent>=50?'#f59e0b':'#ef4444'};border-radius:3px"></div>
           </div>
           ${a.absentList&&a.absentList.length>0?`<div style="margin-top:6px;font-size:12px;color:#ef4444">❌ Kelmagan: ${a.absentList.join(', ')}</div>`:''}
         </div>`).join('')}
