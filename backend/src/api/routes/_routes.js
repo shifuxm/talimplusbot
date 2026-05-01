@@ -217,6 +217,20 @@ expRouter.post('/', roleCheck('admin', 'receptionist'), async (req, res) => {
     const { category, subcategory, staffId, monthYear, amount, paymentType, note } = req.body;
     if (!category || !amount || !paymentType) return res.status(400).json({ error: 'Kategoriya, summa, tur kerak' });
 
+    // Balans tekshiruvi - hisobdagi qiymatdan ko'p chiqim qilinmasin
+    const balance = await getBalance();
+    const expAmount = BigInt(amount);
+    if (paymentType === 'cash' && expAmount > balance.cash) {
+      return res.status(400).json({
+        error: `Naqd balans yetarli emas. Mavjud: ${Number(balance.cash).toLocaleString('ru-RU')} so'm`
+      });
+    }
+    if (paymentType === 'card' && expAmount > balance.card) {
+      return res.status(400).json({
+        error: `Karta balans yetarli emas. Mavjud: ${Number(balance.card).toLocaleString('ru-RU')} so'm`
+      });
+    }
+
     let staffName = '';
     if (staffId) {
       const s = await prisma.user.findUnique({ where: { id: parseInt(staffId) } });
@@ -224,10 +238,10 @@ expRouter.post('/', roleCheck('admin', 'receptionist'), async (req, res) => {
     }
 
     const expense = await prisma.expense.create({
-      data: { category, subcategory, staffId: staffId ? parseInt(staffId) : null, monthYear, amount: BigInt(amount), paymentType, note }
+      data: { category, subcategory, staffId: staffId ? parseInt(staffId) : null, monthYear, amount: expAmount, paymentType, note }
     });
 
-    await sendExpenseReport({ category, subcategory, staffName, monthYear, amount: BigInt(amount), paymentType, note });
+    await sendExpenseReport({ category, subcategory, staffName, monthYear, amount: expAmount, paymentType, note });
 
     res.json({ ...expense, amount: expense.amount.toString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
