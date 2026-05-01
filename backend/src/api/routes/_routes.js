@@ -31,8 +31,11 @@ attRouter.get('/sheet/:scheduleId', roleCheck('teacher'), async (req, res) => {
     isPresent: gs.attendances[0]?.isPresent ?? null
   }));
 
-  if (alreadyTaken) students = students.filter(s => s.isPresent !== true);
-  res.json({ students, alreadyTaken });
+  // allStudents - BARCHA o'quvchilar (2-marta davomat uchun teacher.html ishlatadi)
+  const allStudents = students;
+  // filteredStudents - 2-marta olganda faqat kelmagan (eski compat)
+  const filteredStudents = alreadyTaken ? students.filter(s => s.isPresent !== true) : students;
+  res.json({ students: filteredStudents, allStudents, alreadyTaken });
 });
 
 attRouter.post('/save/:scheduleId', roleCheck('teacher'), async (req, res) => {
