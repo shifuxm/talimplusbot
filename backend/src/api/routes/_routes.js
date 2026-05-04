@@ -326,8 +326,11 @@ statRouter.get('/', roleCheck('admin'), async (req, res) => {
 
     const [y, m] = target.split('-').map(Number);
 
-    const [groupsCount, totalStudents, income, expense] = await Promise.all([
+    const [groupsCount, totalStudents, totalStudentsActive, income, expense] = await Promise.all([
       prisma.group.count({ where: { status: 'active' } }),
+      // Shu oy to'lov qilgan unique o'quvchilar
+      prisma.payment.findMany({ where: { monthYear: target }, select: { studentId: true }, distinct: ['studentId'] }),
+      // Jami faol o'quvchilar
       prisma.groupStudent.findMany({ where: { status: 'active' }, select: { studentId: true }, distinct: ['studentId'] }),
       prisma.payment.groupBy({ by: ['paymentType'], where: { monthYear: target }, _sum: { amount: true } }),
       prisma.expense.groupBy({ by: ['paymentType'], where: { monthYear: target }, _sum: { amount: true } })
@@ -363,7 +366,8 @@ statRouter.get('/', roleCheck('admin'), async (req, res) => {
     res.json({
       month: target,
       groupsCount,
-      totalStudents: totalStudents.length,
+      totalStudents: totalStudentsActive.length,
+      paidStudents: totalStudents.length,
       oneSubject: Number(oneSubject[0]?.count || 0),
       twoPlus: Number(twoPlus[0]?.count || 0),
       income: parseGroupBy(income),
