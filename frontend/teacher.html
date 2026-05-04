@@ -82,7 +82,7 @@ function fmt(n){return Number(n).toLocaleString('ru-RU')+" so'm";}
 function mLabel(my){if(!my)return'';const[y,m]=my.split('-');const ms=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];return ms[parseInt(m)-1]+' '+y;}
 let _tt;function toast(msg,ms=2800){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(_tt);_tt=setTimeout(()=>t.style.display='none',ms);}
 function ldHtml(){return `<div style="display:flex;justify-content:center;padding:48px"><svg style="animation:spin .7s linear infinite" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#07568A" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg></div>`;}
-function emHtml(msg){return `<div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📭</div><div style="font-size:14px">${msg}</div></div>`;}
+function emHtml(msg){return '<div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="margin-bottom:12px"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div><div style="font-size:14px">'+msg+'</div></div>';}
 function openModal(title,html){closeModal();const d=document.createElement('div');d.id='modal';d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:flex;align-items:flex-end';d.innerHTML=`<div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:92vh;overflow-y:auto;animation:slideUp .25s ease;overscroll-behavior:contain"><div style="padding:12px 20px 16px;border-bottom:1px solid #f3f4f6;position:sticky;top:0;background:#fff;z-index:10"><div style="width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px"></div><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:18px;font-weight:700">${title}</div><button onclick="closeModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#9ca3af;padding:0">×</button></div></div><div style="padding:16px 20px 32px">${html}</div></div>`;d.addEventListener('click',e=>{if(e.target===d)closeModal();});document.getElementById('modals').appendChild(d);}
 function closeModal(){const m=document.getElementById('modal');if(m)m.remove();}
 
@@ -175,7 +175,7 @@ async function rAttendance(el){
 
     function drawSheet(){
       el.innerHTML='<button class="btn bs" style="width:auto;margin-bottom:12px" id="attBack">← Orqaga</button>'
-        +(alreadyTaken?'<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e">⚠️ Davomat avval olingan. Oʼzgartirib saqlashingiz mumkin.</div>':'')
+        +(alreadyTaken?'<div style="background:#fef9c3;border:1.5px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#92400e;display:flex;align-items:center;gap:8px">Davomat avval olingan \u2014 o\u02bczgartirib saqlashingiz mumkin.</div>':'')
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
         +'<span class="st" style="margin:0">BARCHA OʼQUVCHILAR</span>'
         +'<span id="attCnt" style="font-size:13px;color:#07568A;font-weight:700">✅ '+pIds.size+'/'+allSts.length+'</span>'
@@ -208,11 +208,25 @@ async function rAttendance(el){
         pIds=new Set();allSts.forEach(s=>updRow(s.groupStudentId));updCnt();
       });
       document.getElementById('attSaveBtn')?.addEventListener('click',async()=>{
+        const btn=document.getElementById('attSaveBtn');
+        if(btn){btn.disabled=true;btn.textContent='Saqlanmoqda...';}
         try{
           await P(`/attendance/save/${schedule.id}`,{presentIds:Array.from(pIds)});
-          toast('✅ Davomat saqlandi');
-          rAttendance(document.getElementById('content'));
-        }catch(e){toast('❌ '+e.message);}
+          // Saqlangandan keyin - olingan deb belgilaymiz
+          const warn=document.querySelector('.attWarnBanner');
+          if(warn){warn.style.background='#f0fdf4';warn.style.borderColor='#bbf7d0';warn.style.color='#15803d';warn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg> Davomat muvaffaqiyatli saqlandi';}
+          else{
+            const banner=document.createElement('div');
+            banner.className='attWarnBanner';
+            banner.style.cssText='display:flex;align-items:center;gap:8px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;color:#15803d';
+            banner.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg> Davomat saqlandi';
+            document.getElementById('attSaveBtn')?.before(banner);
+          }
+          if(btn){btn.disabled=false;btn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Qayta saqlash';}
+        }catch(e){
+          toast('\u2717 '+e.message);
+          if(btn){btn.disabled=false;btn.textContent='\u2713 Davomatni saqlash';}
+        }
       });
     }
     drawSheet();
