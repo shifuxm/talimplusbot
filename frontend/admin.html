@@ -49,9 +49,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sbox input{border:none;background:transparent;outline:none;font-size:15px;flex:1}
 #toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:11px 22px;border-radius:24px;font-size:14px;font-weight:500;z-index:9999;white-space:nowrap;display:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
 .cald{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:14px;cursor:pointer}
-.cald.sel{background:#07568A;color:#fff;font-weight:600}
+.cald.sel{background:#07568A;color:#fff !important;font-weight:700}
 .cald.td{font-weight:700;color:#07568A}
-.cald.past{color:#d1d5db;pointer-events:none}
+.cald.past{color:#d1d5db;pointer-events:none}.cald.sel.past{color:#fff !important;pointer-events:auto}
 .st{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .pv{padding:16px;padding-bottom:32px}
 </style>
@@ -166,10 +166,11 @@ const ADMIN_NAV=[
   {id:'staff',label:'Hodimlar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'},
   {id:'schedule',label:'Dars jadvali',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'},
   {id:'debtors',label:'Qarzdorlar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'},
+  {id:'attendance',label:'Davomat',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'},
   {id:'settings',label:'Sozlamalar',svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 12 2a10 10 0 0 0-7.07 2.93M4.93 4.93A10 10 0 0 0 2 12a10 10 0 0 0 2.93 7.07M19.07 19.07A10 10 0 0 0 22 12a10 10 0 0 0-2.93-7.07M12 22a10 10 0 0 0 7.07-2.93"/></svg>'},
   {id:'delstaff',label:"O'chirish",svg:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'},
 ];
-const TITLES={stats:'Statistika',students:"O'quvchilar",staff:'Hodimlar',schedule:'Dars jadvali',debtors:'Qarzdorlar',settings:'Sozlamalar',delstaff:"O'chirish"};
+const TITLES={stats:'Statistika',students:"O'quvchilar",staff:'Hodimlar',schedule:'Dars jadvali',debtors:'Qarzdorlar',attendance:'Davomat',settings:'Sozlamalar',delstaff:"O'chirish"};
 let curPage='stats';
 
 function setupSidebar(user){
@@ -187,7 +188,7 @@ function nav(page){
   sbClose();
   const el=document.getElementById('content');
   el.innerHTML=ldHtml();
-  ({stats:rStats,students:rStudents,staff:rStaff,schedule:rSchedule,debtors:rDebtors,settings:rSettings,delstaff:rDelStaff})[page]?.(el);
+  ({stats:rStats,students:rStudents,staff:rStaff,schedule:rSchedule,debtors:rDebtors,attendance:rAttendance,settings:rSettings,delstaff:rDelStaff})[page]?.(el);
 }
 
 // ============ INIT ============
@@ -215,36 +216,47 @@ async function rStats(el){
   }
   function mpHtml(){ return `<div class="mp">${months.map(m=>`<div class="mpb${m===sel?' on':''}" onclick="smsel('${m}')">${mLabel(m)}</div>`).join('')}</div>`; }
   function draw(d){
-    if(d.noData){ el.innerHTML=mpHtml()+`<div style="text-align:center;padding:48px 20px;color:#9ca3af"><div style="font-size:48px;margin-bottom:12px">📊</div><div>Bu oydagi ma'lumotlar mavjud emas</div></div>`; window.smsel=m=>{sel=m;load();}; return; }
+    if(d.noData){
+      el.innerHTML=mpHtml()+'<div style="text-align:center;padding:48px 20px;color:#9ca3af">'
+        +'<div style="margin:0 auto 12px;width:56px;height:56px;border-radius:16px;background:#f3f4f6;display:flex;align-items:center;justify-content:center">'
+        +'<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>'
+        +'<div style="font-size:14px">Bu oydagi ma\u02bclumotlar mavjud emas</div></div>';
+      window.smsel=m=>{sel=m;load();}; return; }
     const inc=d.income, exp=d.expense;
     const profit=BigInt(inc.total)-BigInt(exp.total);
     el.innerHTML=`
     ${mpHtml()}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div class="card" style="padding:16px;text-align:center;cursor:pointer" onclick="nav('students')">
-        <div style="width:48px;height:48px;border-radius:14px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <div style="width:44px;height:44px;border-radius:14px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
         </div>
-        <div style="font-size:28px;font-weight:700;color:#1d4ed8">${d.totalStudents}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px">O'quvchilar</div>
+        <div style="font-size:26px;font-weight:700;color:#1d4ed8">${d.totalStudents}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">Jami o\u02bcquvchilar</div>
       </div>
       <div class="card" style="padding:16px;text-align:center">
-        <div style="width:48px;height:48px;border-radius:14px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <div style="width:44px;height:44px;border-radius:14px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
-        <div style="font-size:28px;font-weight:700;color:#15803d">${d.groupsCount}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px">Guruhlar</div>
+        <div style="font-size:26px;font-weight:700;color:#15803d">${d.groupsCount}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">Faol guruhlar</div>
       </div>
       <div class="card" style="padding:16px;text-align:center">
-        <div style="font-size:28px;font-weight:700;color:#854d0e">${d.oneSubject}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px">1 ta fanda</div>
+        <div style="width:44px;height:44px;border-radius:14px;background:#fef9c3;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#854d0e" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div style="font-size:26px;font-weight:700;color:#854d0e">${d.paidStudents||0}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">To\u02bclov qildi</div>
       </div>
       <div class="card" style="padding:16px;text-align:center">
-        <div style="font-size:28px;font-weight:700;color:#7e22ce">${d.twoPlus}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px">2+ fanda</div>
+        <div style="width:44px;height:44px;border-radius:14px;background:#ede9fe;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div style="font-size:26px;font-weight:700;color:#7e22ce">${d.twoPlus}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">2+ fanda</div>
       </div>
     </div>
-    <div class="st">MOLIYA — ${mLabel(sel)}</div>
+        <div class="st">MOLIYA — ${mLabel(sel)}</div>
     <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:16px;padding:16px;margin-bottom:10px">
       <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:6px">KIRIM</div>
       <div style="font-size:26px;font-weight:700;color:#1d4ed8">${fmt(inc.total)}</div>
@@ -547,42 +559,104 @@ async function rSchedule(el){
       };
       window.schLoadCal=async()=>{
         const gid=document.getElementById('schG').value; if(!gid)return;
-        const now=new Date(), month=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        const ex=await G(`/schedule/group/${gid}?month=${month}`);
-        let selDates=ex.map(s=>s.lessonDate.slice(0,10));
         const calEl=document.getElementById('schCalSec');
-        const today=now.toISOString().slice(0,10);
-        const y=now.getFullYear(), m=now.getMonth();
-        const dim=new Date(y,m+1,0).getDate(), fd=new Date(y,m,1).getDay();
-        const adj=fd===0?6:fd-1;
         const days2=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
         const mns=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
-        const cells=[]; for(let i=0;i<adj;i++) cells.push('<div></div>');
-        for(let d=1;d<=dim;d++){
-          const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          const isPast=ds<today||ds<'2026-04-01'; const isSel=selDates.includes(ds); const isTd=ds===today;
-          cells.push(`<div class="cald${isSel?' sel':''}${isTd&&!isSel?' td':''}${isPast?' past':''}" onclick="schTog(this,'${ds}')">${d}</div>`);
-        }
-        calEl.innerHTML=`<div class="card" style="padding:16px;margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <span style="font-weight:600">${mns[m]} ${y}</span><span id="schCnt" style="font-size:13px;color:#07568A;font-weight:600">${selDates.length} ta tanlandi</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">${days2.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:#9ca3af">${d}</div>`).join('')}</div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells.join('')}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-          <div class="ig" style="margin:0"><label class="il">Boshlanish</label><input type="time" id="schSt" class="inp" value="09:00"/></div>
-          <div class="ig" style="margin:0"><label class="il">Tugash</label><input type="time" id="schEn" class="inp" value="11:00"/></div>
-        </div>
-        <button class="btn bp" onclick="saveSch('${gid}')">✓ Jadvalni saqlash</button>`;
-        window.schTog=(el2,date)=>{ const i=selDates.indexOf(date); if(i>-1){selDates.splice(i,1);el2.classList.remove('sel');}else{selDates.push(date);el2.classList.add('sel');} document.getElementById('schCnt').textContent=`${selDates.length} ta tanlandi`; };
-        window.saveSch=async gid2=>{ if(!selDates.length)return toast('Kamida 1 kun tanlang');
-          try{ await P(`/schedule/group/${gid2}`,{dates:selDates,startTime:document.getElementById('schSt').value,endTime:document.getElementById('schEn').value}); toast('✅ Jadval saqlandi'); }
-          catch(e){ toast('❌ '+e.message); } };
-      };
-    };
+        const now2=new Date();
+        let calY=now2.getFullYear(), calM=now2.getMonth();
+        let selDates=[];
+        // Barcha mavjud jadvalni yuklaymiz
+        try{
+          const allEx=await G('/schedule/group/'+gid+'?month='+calY+'-'+String(calM+1).padStart(2,'0'));
+          selDates=allEx.map(s=>s.lessonDate.slice(0,10));
+        }catch(e2){}
 
-    window.showEditSchedule=async()=>{
+        function todayStr(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+
+        function drawCal(){
+          const td=todayStr();
+          const dim=new Date(calY,calM+1,0).getDate();
+          const fd=new Date(calY,calM,1).getDay();
+          const adj=fd===0?6:fd-1;
+          let cells='';
+          for(let i=0;i<adj;i++) cells+='<div></div>';
+          for(let d=1;d<=dim;d++){
+            const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+            const isPast=ds<td; const isSel=selDates.includes(ds); const isTd=ds===td;
+            cells+='<div class="cald'+(isSel?' sel':'')+(isTd&&!isSel?' td':'')+(isPast?' past':'')+'" id="schcd'+ds.replace(/-/g,'')+'">'+d+'</div>';
+          }
+          const stVal=document.getElementById('schSt')?.value||'09:00';
+          const enVal=document.getElementById('schEn')?.value||'11:00';
+          calEl.innerHTML=
+            '<div class="card" style="padding:16px;margin-bottom:12px">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+            +'<button id="schPrev" style="width:36px;height:36px;border-radius:50%;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg></button>'
+            +'<div style="text-align:center"><div style="font-weight:700;font-size:15px">'+mns[calM]+' '+calY+'</div><div id="schCnt" style="font-size:12px;color:#07568A;font-weight:600;margin-top:2px">'+selDates.length+' kun tanlandi</div></div>'
+            +'<button id="schNext" style="width:36px;height:36px;border-radius:50%;border:1.5px solid #e5e7eb;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg></button>'
+            +'</div>'
+            +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">'+days2.map(d=>'<div style="text-align:center;font-size:11px;font-weight:700;color:#9ca3af">'+d+'</div>').join('')+'</div>'
+            +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">'+cells+'</div>'
+            +'</div>'
+            +'<div style="display:flex;gap:8px;margin-bottom:12px">'
+            +'<button id="schWdayBtn" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #07568A;background:#f0f9ff;color:#07568A;font-size:13px;font-weight:600;cursor:pointer">Du-Ju kunlari</button>'
+            +'<button id="schClrBtn" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid #fee2e2;background:#fff;color:#ef4444;font-size:13px;font-weight:600;cursor:pointer">Tozalash</button>'
+            +'</div>'
+            +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'
+            +'<div class="ig" style="margin:0"><label class="il">Boshlanish</label><input type="time" id="schSt" class="inp" value="'+stVal+'"/></div>'
+            +'<div class="ig" style="margin:0"><label class="il">Tugash</label><input type="time" id="schEn" class="inp" value="'+enVal+'"/></div>'
+            +'</div>'
+            +'<button class="btn bp" id="schSaveBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Jadvalni saqlash</button>';
+
+          // Nav
+          document.getElementById('schPrev')?.addEventListener('click',()=>{calM--;if(calM<0){calM=11;calY--;}drawCal();});
+          document.getElementById('schNext')?.addEventListener('click',()=>{calM++;if(calM>11){calM=0;calY++;}drawCal();});
+          // Ish kunlari
+          document.getElementById('schWdayBtn')?.addEventListener('click',()=>{
+            const td2=todayStr();
+            const dim2=new Date(calY,calM+1,0).getDate();
+            for(let d=1;d<=dim2;d++){
+              const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+              const dow=new Date(ds).getDay();
+              if(dow>=1&&dow<=5&&ds>=td2&&!selDates.includes(ds)) selDates.push(ds);
+            }
+            drawCal();
+          });
+          // Tozalash
+          document.getElementById('schClrBtn')?.addEventListener('click',()=>{
+            const prefix=calY+'-'+String(calM+1).padStart(2,'0');
+            selDates=selDates.filter(ds=>!ds.startsWith(prefix));
+            drawCal();
+          });
+          // Sana click
+          for(let d=1;d<=dim;d++){
+            const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+            const cel=document.getElementById('schcd'+ds.replace(/-/g,''));
+            if(cel&&!cel.classList.contains('past')){
+              cel.addEventListener('click',()=>{
+                const i=selDates.indexOf(ds);
+                if(i>-1){selDates.splice(i,1);cel.classList.remove('sel');}
+                else{selDates.push(ds);cel.classList.add('sel');}
+                const cnt=document.getElementById('schCnt');
+                if(cnt) cnt.textContent=selDates.length+' kun tanlandi';
+              });
+            }
+          }
+          // Saqlash
+          document.getElementById('schSaveBtn')?.addEventListener('click',async()=>{
+            if(!selDates.length)return toast('Kamida 1 kun tanlang');
+            try{
+              await P('/schedule/group/'+gid,{dates:selDates,startTime:document.getElementById('schSt').value,endTime:document.getElementById('schEn').value});
+              toast('\u2713 Jadval saqlandi');
+              rSchedule(document.getElementById('content'));
+            }catch(e2){toast('\u2717 '+e2.message);}
+          });
+        }
+        drawCal();
+      };
+
+      }; // showAddSchedule
+
+      window.showEditSchedule=async()=>{
       const subs2=await G('/subjects');
       el.innerHTML='<button class="btn bs" style="width:auto;margin-bottom:16px" onclick="rSchedule(document.getElementById(\'content\'))">\u2190 Orqaga</button>'
         +'<div style="font-size:16px;font-weight:700;margin-bottom:16px">Jadval tahrirlash</div>'
@@ -608,7 +682,8 @@ async function rSchedule(el){
         const ex=await G('/schedule/group/'+gid+'?month='+month);
         let selDates=ex.map(s=>s.lessonDate.slice(0,10));
         const calEl=document.getElementById('edCalSec');
-        const today=now.toISOString().slice(0,10);
+        // Local vaqt (UTC muammosini oldini olish)
+        const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
         const y=now.getFullYear(),m=now.getMonth();
         const dim=new Date(y,m+1,0).getDate(),fd=new Date(y,m,1).getDay();
         const adj=fd===0?6:fd-1;
@@ -624,7 +699,7 @@ async function rSchedule(el){
         for(let i=0;i<adj;i++) cells+='<div></div>';
         for(let d=1;d<=dim;d++){
           const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-          const isPast=ds<today||ds<'2026-04-01';
+          const isPast=ds<today;
           const isSel=selDates.includes(ds);
           const isTd=ds===today;
           cells+='<div class="cald'+(isSel?' sel':'')+(isTd&&!isSel?' td':'')+(isPast?' past':'')+'" onclick="edTog(this,\''+ds+'\')">'+d+'</div>';
@@ -660,8 +735,8 @@ async function rSchedule(el){
               startTime:document.getElementById('edSt').value,
               endTime:document.getElementById('edEn').value
             });
-            toast('\u2705 Jadval saqlandi');
-          }catch(e){toast('\u274c '+e.message);}
+            toast('\u2713 Jadval saqlandi');
+          }catch(e){toast('\u274d '+e.message);}
         };
       };
     };
@@ -801,10 +876,136 @@ async function rDebtors(el){
         :('\u2705 '+r.sent+' ta xabar yuborildi');
       toast(info,3500);
     }catch(e){
-      toast('\u274c '+e.message);
+      toast('\u274d '+e.message);
       if(btn){btn.disabled=false;btn.textContent='Xabarni yuborish';}
     }
   };
+}
+
+// ============ ATTENDANCE ============
+async function rAttendance(el){
+  const months=['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+  const now=new Date();
+  let selMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  let selGroupId=null;
+  let groups=[];
+
+  async function loadGroups(){
+    groups=await G('/groups');
+    drawGroupSelect();
+  }
+
+  function monthPills(){
+    const res=[];
+    for(let i=-2;i<=1;i++){
+      const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+      const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      res.push(k);
+    }
+    return res;
+  }
+
+  function drawGroupSelect(){
+    const mths=monthPills();
+    let monthHtml='';
+    mths.forEach(m=>{
+      const mk=m.replace('-','');
+      monthHtml+='<div class="mpb'+(m===selMonth?' on':'')+'" id="attm'+mk+'" style="cursor:pointer" onclick="attSelM(\''+m+'\')">'+mLabel(m)+'</div>';
+    });
+    let groupHtml='';
+    if(!groups.length){
+      groupHtml='<div style="padding:20px;text-align:center;color:#9ca3af">Guruhlar yo\u02bclq</div>';
+    } else {
+      groups.forEach(g=>{
+        groupHtml+='<div class="li" id="attg'+g.id+'" onclick="attSelG('+g.id+')">'
+          +'<div style="flex:1"><div style="font-size:15px;font-weight:500">'+g.name+'</div>'
+          +'<div style="font-size:12px;color:#9ca3af">'+(g.subject?.name||'')+' \u00b7 '+(g.teacher?.firstName||'')+' '+(g.teacher?.lastName||'')+'</div></div>'
+          +'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
+          +'</div>';
+      });
+    }
+    el.innerHTML=
+      '<div class="st">OY TANLANG</div>'
+      +'<div class="mp" style="margin-bottom:16px">'+monthHtml+'</div>'
+      +'<div class="st">GURUH TANLANG</div>'
+      +'<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">'+groupHtml+'</div>'
+      +'<div id="attResult"></div>';
+
+    window.attSelM=m=>{
+      selMonth=m;
+      document.querySelectorAll('#attResult').forEach(el2=>el2.innerHTML='');
+      mths.forEach(mn=>{
+        const btn=document.getElementById('attm'+mn.replace('-',''));
+        if(btn) btn.classList.toggle('on',mn===m);
+      });
+      if(selGroupId) loadAttData(selGroupId);
+    };
+    window.attSelG=gid=>{
+      selGroupId=gid;
+      document.querySelectorAll('[id^="attg"]').forEach(li=>{
+        li.style.background=li.id==='attg'+gid?'#eff6ff':'';
+      });
+      loadAttData(gid);
+    };
+  }
+
+  async function loadAttData(gid){
+    const res=document.getElementById('attResult');
+    if(!res)return;
+    res.innerHTML=ldHtml();
+    try{
+      const sts=await G('/groups/'+gid+'/students');
+      if(!sts.length){res.innerHTML=emHtml('Bu guruhda o\u02bcquvchilar yo\u02bclq');return;}
+
+      // Shu oy davomati
+      const [y,m]=selMonth.split('-').map(Number);
+      const scheds=await G('/schedule/group/'+gid+'?month='+selMonth);
+      if(!scheds.length){
+        res.innerHTML='<div style="background:#f9fafb;border-radius:12px;padding:20px;text-align:center;color:#9ca3af">'+mLabel(selMonth)+' oyida dars belgilanmagan</div>';
+        return;
+      }
+
+      // Barcha darslar sanasi
+      const dateLabels=scheds.map(s=>{const d=new Date(s.lessonDate);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');});
+
+      // Har bir o'quvchi uchun davomat
+      const attAll=await Promise.all(sts.map(s=>G('/attendance/student/'+s.id+'?groupId='+gid+'&month='+selMonth).catch(()=>[])));
+
+      // Jadval header
+      let html='<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
+        +'<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:'+(120+scheds.length*36)+'px">'
+        +'<thead><tr>'
+        +'<th style="text-align:left;padding:8px 10px;background:#f9fafb;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;position:sticky;left:0;z-index:2;min-width:110px">O\u02bcquvchi</th>'
+        +scheds.map((s,i)=>'<th style="padding:4px;background:#f9fafb;border-bottom:2px solid #e5e7eb;font-weight:600;color:#6b7280;text-align:center;width:36px">'+dateLabels[i]+'</th>').join('')
+        +'<th style="padding:8px 6px;background:#f9fafb;border-bottom:2px solid #e5e7eb;font-weight:700;color:#374151;text-align:center;min-width:60px">Jami</th>'
+        +'</tr></thead><tbody>';
+
+      sts.forEach((s,si)=>{
+        const attMap={};
+        (attAll[si]||[]).forEach(a=>{attMap[a.scheduleId]=a.isPresent;});
+        let present=0;
+        const cells=scheds.map(sch=>{
+          const ip=attMap[sch.id];
+          if(ip===true){present++;return '<td style="text-align:center;padding:4px"><span style="color:#15803d;font-weight:700;font-size:14px">✓</span></td>';}
+          if(ip===false){return '<td style="text-align:center;padding:4px"><span style="color:#ef4444;font-weight:700;font-size:14px">✗</span></td>';}
+          return '<td style="text-align:center;padding:4px;color:#d1d5db">—</td>';
+        }).join('');
+        const pct=scheds.length>0?Math.round(present/scheds.length*100):0;
+        const pctColor=pct>=75?'#15803d':pct>=50?'#b45309':'#dc2626';
+        html+='<tr style="border-bottom:1px solid #f3f4f6;background:'+(si%2===0?'#fff':'#fafafa')+'">'
+          +'<td style="padding:8px 10px;font-weight:500;position:sticky;left:0;z-index:1;background:'+(si%2===0?'#fff':'#fafafa')+'">'
+          +s.firstName+' '+s.lastName+'</td>'
+          +cells
+          +'<td style="text-align:center;padding:4px"><b style="color:'+pctColor+'">'+pct+'%</b><br><span style="color:#9ca3af;font-size:11px">'+present+'/'+scheds.length+'</span></td>'
+          +'</tr>';
+      });
+
+      html+='</tbody></table></div>';
+      res.innerHTML=html;
+    }catch(e){res.innerHTML=emHtml('Xatolik: '+e.message);}
+  }
+
+  loadGroups();
 }
 
 // ============ DELETE STAFF ============
